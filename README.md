@@ -4,7 +4,7 @@ Calculate shipping costs as a percentage of physical products.
 ## Plugin Header (WordPress.org Style)
 
 **Contributors:** tobiashaas  
-**Tags:** woocommerce, shipping, percentage
+**Tags:** woocommerce, shipping, percentage  
 **Requires at least:** 5.6  
 **Tested up to:** 6.4  
 **Requires PHP:** 8.0  
