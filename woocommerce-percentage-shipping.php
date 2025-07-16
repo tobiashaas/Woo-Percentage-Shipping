@@ -5,8 +5,8 @@ declare(strict_types=1);
 /**
  * Plugin Name: WooCommerce Percentage Shipping
  * Description: Calculate shipping costs as a percentage of physical products
- * Version: 1.6.2
- * Author: Tobias Haas (Perplexity)
+ * Version: 1.2.0
+ * Author: Tobias Haas
  * Text Domain: wc-percentage-shipping
  * Domain Path: /languages
  * Requires at least: 5.6
