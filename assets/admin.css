@@ -1,0 +1,376 @@
+/* WooCommerce Percentage Shipping Admin - Optimized 3-Column Layout */
+.wc-percentage-shipping-admin {
+    max-width: 1400px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+}
+
+/* Clean title without icons and badges */
+.wc-percentage-shipping-admin h1 {
+    font-size: 23px;
+    font-weight: 400;
+    margin: 0 0 20px 0;
+    color: #23282d;
+}
+
+/* Header with status */
+.wc-percentage-shipping-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    border-left: 4px solid #2271b1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.wc-percentage-shipping-status .status-enabled {
+    color: #00a32a;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.wc-percentage-shipping-status .status-disabled {
+    color: #d63638;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* 3-Column Grid Layout */
+.wc-percentage-shipping-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 25px;
+    align-items: start;
+}
+
+.wc-percentage-shipping-main {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #e1e5e9;
+}
+
+.wc-percentage-shipping-box {
+    background: #fff;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.wc-percentage-shipping-box:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.wc-percentage-shipping-box h3 {
+    margin-top: 0;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f1f1f1;
+    color: #2271b1;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Section Intro */
+.wc-percentage-shipping-section-intro {
+    background: linear-gradient(135deg, #f0f6fc 0%, #e3f2fd 100%);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    border-left: 4px solid #72aee6;
+}
+
+.wc-percentage-shipping-info-box {
+    background: #fff;
+    padding: 18px;
+    border-radius: 6px;
+    margin-top: 15px;
+    border: 1px solid #e3f2fd;
+}
+
+.wc-percentage-shipping-info-box h4 {
+    margin-top: 0;
+    color: #2271b1;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wc-percentage-shipping-info-box ol {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.wc-percentage-shipping-info-box li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+/* Tooltip System */
+.wc-percentage-shipping-help-tip {
+    color: #666;
+    cursor: help;
+    margin-left: 8px;
+    font-size: 16px;
+    transition: color 0.2s ease;
+}
+
+.wc-percentage-shipping-help-tip:hover,
+.wc-percentage-shipping-help-tip:focus {
+    color: #2271b1;
+}
+
+.wc-percentage-shipping-tooltip {
+    position: absolute;
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 9999;
+    pointer-events: none;
+    max-width: 300px;
+    line-height: 1.4;
+    word-wrap: break-word;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Examples and Info Boxes */
+.wc-percentage-shipping-example {
+    background: linear-gradient(135deg, #f6f7f7 0%, #eaecef 100%);
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 15px;
+    border-left: 3px solid #72aee6;
+}
+
+.wc-percentage-shipping-digital-info {
+    background: linear-gradient(135deg, #fff2cc 0%, #ffeaa7 100%);
+    padding: 18px;
+    border-radius: 6px;
+    margin-top: 15px;
+    border-left: 3px solid #f0b849;
+}
+
+.wc-percentage-shipping-digital-info ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.wc-percentage-shipping-digital-info li {
+    margin-bottom: 6px;
+}
+
+/* Overview Table */
+.wc-percentage-shipping-overview {
+    width: 100%;
+    border-spacing: 0;
+}
+
+.wc-percentage-shipping-overview td {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+    font-size: 14px;
+}
+
+.wc-percentage-shipping-overview td:first-child {
+    font-weight: 600;
+    width: 50%;
+    color: #555;
+}
+
+.wc-percentage-shipping-overview td:last-child {
+    text-align: right;
+}
+
+.wc-percentage-shipping-overview .enabled {
+    color: #00a32a;
+    font-weight: 600;
+}
+
+.wc-percentage-shipping-overview .disabled {
+    color: #d63638;
+    font-weight: 600;
+}
+
+/* Preview */
+.wc-percentage-shipping-preview {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 18px;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.wc-percentage-shipping-preview h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #2271b1;
+    font-size: 15px;
+}
+
+.preview-example {
+    background: #fff;
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 15px;
+    border: 1px solid #e9ecef;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.preview-example p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+/* Form Enhancements */
+.form-table th {
+    width: 180px;
+    padding: 15px 0;
+    vertical-align: top;
+    font-size: 14px;
+}
+
+.form-table td {
+    padding: 15px 0;
+}
+
+input[type="number"].small-text {
+    width: 100px;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type="number"].small-text:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.1);
+    outline: none;
+}
+
+input[type="number"].small-text:valid {
+    border-color: #00a32a;
+}
+
+input[type="number"].small-text.error {
+    border-color: #d63638;
+    box-shadow: 0 0 0 2px rgba(214, 54, 56, 0.1);
+}
+
+select[multiple] {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+select[multiple]:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.1);
+    outline: none;
+}
+
+/* Field Errors */
+.field-error {
+    color: #d63638;
+    font-size: 12px;
+    margin-top: 5px;
+    display: block;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.wc-percentage-shipping-box {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .wc-percentage-shipping-content {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .wc-percentage-shipping-main {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .wc-percentage-shipping-admin {
+        padding: 10px;
+    }
+    
+    .wc-percentage-shipping-content {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .wc-percentage-shipping-header,
+    .wc-percentage-shipping-main,
+    .wc-percentage-shipping-box {
+        padding: 15px;
+    }
+    
+    .form-table th,
+    .form-table td {
+        display: block;
+        width: 100%;
+        padding: 10px 0;
+    }
+    
+    .form-table th {
+        border-bottom: none;
+        font-weight: 600;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .wc-percentage-shipping-content {
+        display: block;
+    }
+    
+    .wc-percentage-shipping-box {
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+    }
+    
+    .wc-percentage-shipping-header {
+        background: none;
+        border: 1px solid #000;
+    }
+}
