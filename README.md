@@ -114,9 +114,25 @@ Enable debug mode to access detailed logs:
 
 ## Changelog
 
+### 1.5.2
+**Bug Fixes & Cleanup**
+- **FIXED**: PHP fatal errors related to undefined methods
+- **FIXED**: Removed all duplicate method definitions
+- **FIXED**: Added all missing rendering methods
+- **IMPROVED**: Clean code structure with no duplicate methods
+- **IMPROVED**: Verified PHP syntax is correct
+- **IMPROVED**: All admin interface tabs now working properly
+
+### 1.5.3
+**Code Cleanup & Branding**
+- **REMOVED**: All Yoast references from code and documentation
+- **IMPROVED**: Renamed to "Modern Vertical Sidebar Interface"
+- **IMPROVED**: Clean, independent branding without external references
+- **IMPROVED**: Updated all comments and documentation
+
 ### 1.5.1
-**Yoast-Style Admin Interface**
-- **NEW**: Complete admin interface redesign with Yoast-style vertical sidebar
+**Modern Vertical Sidebar Interface**
+- **NEW**: Complete admin interface redesign with modern vertical sidebar
 - **NEW**: Search functionality with Ctrl+K shortcut
 - **NEW**: Expandable navigation sections with clean organization
 - **NEW**: WordPress form-table styling for professional appearance

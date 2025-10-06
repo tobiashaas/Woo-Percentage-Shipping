@@ -1,5 +1,5 @@
 /**
- * Woo Percentage Shipping - Yoast-Style Admin Interface
+ * Woo Percentage Shipping - Modern Admin Interface
  * Modern vertical sidebar navigation with search functionality
  */
 
@@ -12,8 +12,8 @@ function domReady(callback) {
     }
 }
 
-// Yoast-Style Navigation System
-class YoastNavigation {
+// Modern Vertical Navigation System
+class ModernNavigation {
     constructor() {
         this.sections = document.querySelectorAll('.nav-section');
         this.navItems = document.querySelectorAll('.nav-item');
@@ -291,7 +291,7 @@ class FormValidation {
         this.form = document.getElementById('settings-form');
         this.init();
     }
-
+        
     init() {
         if (this.form) {
             this.bindEvents();
@@ -389,7 +389,7 @@ class FormValidation {
 // Enhanced Admin Interface
 class ModernAdminInterface {
     constructor() {
-        this.navigation = new YoastNavigation();
+        this.navigation = new ModernNavigation();
         this.livePreview = new LivePreview();
         this.formValidation = new FormValidation();
         
@@ -468,9 +468,9 @@ class ModernAdminInterface {
     addSearchHighlighting() {
         // Add CSS for search highlighting
         if (!document.querySelector('#search-highlight-styles')) {
-            const style = document.createElement('style');
+        const style = document.createElement('style');
             style.id = 'search-highlight-styles';
-            style.textContent = `
+        style.textContent = `
                 .nav-item.search-highlight {
                     background: #fff3cd !important;
                     color: #856404 !important;
@@ -480,11 +480,11 @@ class ModernAdminInterface {
                 .nav-item.search-highlight::before {
                     content: "🔍";
                     margin-right: 8px;
-                }
-            `;
-            document.head.appendChild(style);
-        }
+            }
+        `;
+        document.head.appendChild(style);
     }
+}
 
     handleFormSubmit(event) {
         const form = event.target;

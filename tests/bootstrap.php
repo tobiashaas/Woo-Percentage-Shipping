@@ -8,7 +8,7 @@
  */
 
 // Define test environment
-define('WP_TESTS_PHPUNIT_POLYFILLS_PATH', dirname(__FILE__) . '/../vendor/yoast/phpunit-polyfills');
+// WordPress test environment setup
 
 // Load WordPress test environment
 if (getenv('WP_TESTS_DIR')) {

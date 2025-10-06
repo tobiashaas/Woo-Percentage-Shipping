@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: WooCommerce Percentage Shipping
  * Description: Calculate shipping costs as a percentage of physical products with modern architecture
- * Version: 1.5.1
+ * Version: 1.5.3
  * Author: Tobias Haas
  * Text Domain: wc-percentage-shipping
  * Domain Path: /languages
@@ -83,7 +83,7 @@ enum PluginSecurity: string
  */
 enum PluginConfig: string 
 {
-    case VERSION = '1.5.1';
+    case VERSION = '1.5.3';
     case TEXTDOMAIN = 'wc-percentage-shipping';
     case OPTION_NAME = 'wc_percentage_shipping_options';
     case PLUGIN_SLUG = 'percentage-shipping';
