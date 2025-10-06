@@ -123,6 +123,13 @@ Enable debug mode to access detailed logs:
 - **IMPROVED**: Verified PHP syntax is correct
 - **IMPROVED**: All admin interface tabs now working properly
 
+### 1.5.4
+**WordPress Update Cache Fix**
+- **FIXED**: WordPress update cache now properly shows latest version
+- **FIXED**: Enhanced cache clearing mechanism
+- **IMPROVED**: Automatic cache clearing on plugin activation
+- **IMPROVED**: More robust update detection system
+
 ### 1.5.3
 **Code Cleanup & Branding**
 - **REMOVED**: All Yoast references from code and documentation

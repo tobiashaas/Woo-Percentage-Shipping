@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: WooCommerce Percentage Shipping
  * Description: Calculate shipping costs as a percentage of physical products with modern architecture
- * Version: 1.5.3
+ * Version: 1.5.4
  * Author: Tobias Haas
  * Text Domain: wc-percentage-shipping
  * Domain Path: /languages
@@ -83,7 +83,7 @@ enum PluginSecurity: string
  */
 enum PluginConfig: string 
 {
-    case VERSION = '1.5.3';
+    case VERSION = '1.5.4';
     case TEXTDOMAIN = 'wc-percentage-shipping';
     case OPTION_NAME = 'wc_percentage_shipping_options';
     case PLUGIN_SLUG = 'percentage-shipping';
@@ -137,6 +137,7 @@ final class WC_Percentage_Shipping_Plugin
         add_filter('plugin_action_links_' . plugin_basename($this->plugin_file), [$this, 'settings_link']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
         add_action('wp_ajax_wc_percentage_shipping_preview', [$this, 'ajax_preview_calculation']);
+        add_action('activated_plugin', [$this, 'clear_update_cache_on_activation'], 10, 2);
         
         add_action('admin_head', [$this, 'add_security_headers']);
         add_action('wp_scheduled_delete', [$this, 'cleanup_rate_limiting']);
@@ -1365,8 +1366,25 @@ final class WC_Percentage_Shipping_Plugin
         delete_transient('wc_percentage_shipping_update_check');
         delete_transient('wc_percentage_shipping_update_info');
         
+        // Clear all plugin-related transients
+        global $wpdb;
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wc_percentage_shipping%'");
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_wc_percentage_shipping%'");
+        
         // Force refresh of plugin data
         wp_cache_delete('plugins', 'plugins');
+        wp_cache_flush();
+        
+        // Force WordPress to re-check for updates
+        wp_clean_update_cache();
+    }
+
+    public function clear_update_cache_on_activation(string $plugin, bool $network_wide): void
+    {
+        // Only clear cache if our plugin was activated
+        if (strpos($plugin, 'woocommerce-percentage-shipping') !== false) {
+            $this->clear_update_cache();
+        }
     }
 
     // Helper methods for rendering tab content
