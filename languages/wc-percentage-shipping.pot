@@ -1,5 +1,5 @@
 # WooCommerce Percentage Shipping Plugin
-# Copyright (C) 2024 Tobias Haas (Perplexity)
+# Copyright (C) 2024 Tobias Haas
 # This file is distributed under the same license as the WooCommerce Percentage Shipping Plugin package.
 msgid ""
 msgstr ""

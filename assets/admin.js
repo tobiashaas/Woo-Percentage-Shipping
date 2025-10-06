@@ -273,4 +273,256 @@ class AjaxHandler {
     }
 
     async previewCalculation(cartValue, percentage, minFee, maxFee) {
-        if (!this.ajaxUrl || !this
+        if (!this.ajaxUrl || !this.nonce) {
+            throw new Error('AJAX configuration missing');
+        }
+
+        // Add to request queue
+        return new Promise((resolve, reject) => {
+            this.requestQueue.push({ cartValue, percentage, minFee, maxFee, resolve, reject });
+            this.processQueue();
+        });
+    }
+
+    async processQueue() {
+        if (this.isProcessing || this.requestQueue.length === 0) {
+            return;
+        }
+
+        this.isProcessing = true;
+        const request = this.requestQueue.shift();
+
+        try {
+            const formData = new FormData();
+            formData.append('action', 'wc_percentage_shipping_preview');
+            formData.append('nonce', this.nonce);
+            formData.append('cart_value', request.cartValue);
+            formData.append('percentage', request.percentage);
+            formData.append('minimum_fee', request.minFee);
+            formData.append('maximum_fee', request.maxFee);
+
+            const response = await fetch(this.ajaxUrl, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                request.resolve(data.data);
+            } else {
+                throw new Error(data.data.message || 'Unknown error');
+            }
+        } catch (error) {
+            request.reject(error);
+        } finally {
+            this.isProcessing = false;
+            // Process next request in queue
+            if (this.requestQueue.length > 0) {
+                setTimeout(() => this.processQueue(), 100);
+            }
+        }
+    }
+}
+
+// Enhanced Admin Interface
+class AdminInterface {
+    constructor() {
+        this.tooltip = new VanillaTooltip();
+        this.livePreview = new LivePreview();
+        this.formValidation = new FormValidation();
+        this.ajaxHandler = new AjaxHandler();
+        
+        this.init();
+    }
+
+    init() {
+        this.addEventListeners();
+        this.enhanceUI();
+    }
+
+    addEventListeners() {
+        // Real-time calculation updates
+        const inputs = document.querySelectorAll('input[name*="percentage"], input[name*="minimum_fee"], input[name*="maximum_fee"]');
+        inputs.forEach(input => {
+            input.addEventListener('input', () => this.debounceUpdate());
+        });
+
+        // Form submission enhancement
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', (e) => this.handleFormSubmit(e));
+        }
+    }
+
+    enhanceUI() {
+        // Add loading states
+        this.addLoadingStates();
+        
+        // Enhance accessibility
+        this.enhanceAccessibility();
+        
+        // Add keyboard shortcuts
+        this.addKeyboardShortcuts();
+    }
+
+    addLoadingStates() {
+        const submitButton = document.querySelector('#submit');
+        if (submitButton) {
+            submitButton.addEventListener('click', () => {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Saving...';
+                
+                // Re-enable after 3 seconds as fallback
+                setTimeout(() => {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Save Settings';
+                }, 3000);
+            });
+        }
+    }
+
+    enhanceAccessibility() {
+        // Add ARIA labels
+        const inputs = document.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            if (!input.getAttribute('aria-label') && !input.getAttribute('aria-labelledby')) {
+                const label = input.closest('tr')?.querySelector('th')?.textContent;
+                if (label) {
+                    input.setAttribute('aria-label', label.trim());
+                }
+            }
+        });
+
+        // Add focus management
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                this.manageFocus(e);
+            }
+        });
+    }
+
+    addKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + S to save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                const form = document.querySelector('form');
+                if (form) {
+                    form.requestSubmit();
+                }
+            }
+        });
+    }
+
+    manageFocus(event) {
+        const activeElement = document.activeElement;
+        const tooltip = document.querySelector('.wc-percentage-shipping-tooltip');
+        
+        if (tooltip && tooltip.style.opacity === '1') {
+            // Hide tooltip when navigating away from help tip
+            const helpTip = document.querySelector('.wc-percentage-shipping-help-tip:hover');
+            if (!helpTip) {
+                this.tooltip.hideTooltip();
+            }
+        }
+    }
+
+    debounceUpdate() {
+        clearTimeout(this.updateTimeout);
+        this.updateTimeout = setTimeout(() => {
+            this.updateLivePreview();
+        }, 300);
+    }
+
+    async updateLivePreview() {
+        try {
+            const percentage = parseFloat(document.querySelector('input[name*="percentage"]')?.value) || 10;
+            const minFee = parseFloat(document.querySelector('input[name*="minimum_fee"]')?.value) || 0;
+            const maxFee = parseFloat(document.querySelector('input[name*="maximum_fee"]')?.value) || 0;
+            
+            const result = await this.ajaxHandler.previewCalculation(50, percentage, minFee, maxFee);
+            
+            this.displayPreviewResult(result);
+        } catch (error) {
+            console.warn('Preview update failed:', error);
+            // Fallback to local calculation
+            this.livePreview.updatePreview();
+        }
+    }
+
+    displayPreviewResult(result) {
+        const previewContainer = document.querySelector('.preview-example');
+        if (previewContainer && result) {
+            previewContainer.innerHTML = `
+                <p><strong>${window.wcPercentageShipping?.strings?.cartValue || 'Cart value:'}</strong> €50.00</p>
+                <p><strong>${window.wcPercentageShipping?.strings?.calculation || 'Calculation:'}</strong> ${result.explanation}</p>
+                <p><strong>${window.wcPercentageShipping?.strings?.finalFee || 'Final fee:'}</strong> ${result.final_cost}</p>
+            `;
+            previewContainer.style.animation = 'fadeIn 0.5s ease-in-out';
+        }
+    }
+
+    handleFormSubmit(event) {
+        // Add visual feedback
+        const form = event.target;
+        form.style.opacity = '0.7';
+        
+        // Show success message after submission
+        setTimeout(() => {
+            form.style.opacity = '1';
+            this.showSuccessMessage();
+        }, 1000);
+    }
+
+    showSuccessMessage() {
+        // Create temporary success notification
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 32px;
+            right: 20px;
+            background: #00a32a;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+        `;
+        notification.textContent = 'Settings saved successfully!';
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+}
+
+// Initialize everything when DOM is ready
+domReady(() => {
+    // Initialize admin interface
+    new AdminInterface();
+    
+    // Add CSS animations if not already present
+    if (!document.querySelector('#wc-percentage-shipping-animations')) {
+        const style = document.createElement('style');
+        style.id = 'wc-percentage-shipping-animations';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+});

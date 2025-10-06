@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 /**
  * Plugin Name: WooCommerce Percentage Shipping
- * Description: Calculate shipping costs as a percentage of physical products
- * Version: 1.2.0
+ * Description: Calculate shipping costs as a percentage of physical products with modern architecture
+ * Version: 1.3.0
  * Author: Tobias Haas
  * Text Domain: wc-percentage-shipping
  * Domain Path: /languages
- * Requires at least: 5.6
- * Tested up to: 6.4
- * Requires PHP: 8.0
- * WC requires at least: 5.0
+ * Requires at least: 6.8
+ * Tested up to: 6.8
+ * Requires PHP: 8.3
+ * WC requires at least: 10.0
  * WC tested up to: 10.0
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Network: false
+ * Update URI: https://github.com/tobiashaas/Woo-Percentage-Shipping
  */
 
 if (!defined('ABSPATH')) {
@@ -52,10 +54,10 @@ if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get
 }
 
 // Check PHP version
-if (version_compare(PHP_VERSION, '8.0', '<')) {
+if (version_compare(PHP_VERSION, '8.3', '<')) {
     add_action('admin_notices', static function (): void {
         echo '<div class="notice notice-error"><p>';
-        echo esc_html__('WooCommerce Percentage Shipping requires PHP 8.0 or higher.', 'wc-percentage-shipping');
+        echo esc_html__('WooCommerce Percentage Shipping requires PHP 8.3 or higher.', 'wc-percentage-shipping');
         echo '</p></div>';
     });
     return;
@@ -78,7 +80,7 @@ enum PluginSecurity: string
  */
 enum PluginConfig: string 
 {
-    case VERSION = '1.6.2';
+    case VERSION = '1.3.0';
     case TEXTDOMAIN = 'wc-percentage-shipping';
     case OPTION_NAME = 'wc_percentage_shipping_options';
     case PLUGIN_SLUG = 'percentage-shipping';
@@ -135,6 +137,8 @@ final class WC_Percentage_Shipping_Plugin
         
         add_action('admin_head', [$this, 'add_security_headers']);
         add_action('wp_scheduled_delete', [$this, 'cleanup_rate_limiting']);
+        add_action('woocommerce_settings_saved', [$this, 'clear_cache_on_settings_save']);
+        add_action('wp_scheduled_delete', [$this, 'cleanup_old_logs']);
     }
 
     public function load_textdomain(): void
@@ -497,36 +501,7 @@ final class WC_Percentage_Shipping_Plugin
 
     public function sanitize_options(array $input): array
     {
-        $output = [];
-        
-        $output['enabled'] = isset($input['enabled']) && $input['enabled'] === 'yes' ? 'yes' : 'no';
-        
-        $percentage = isset($input['percentage']) ? floatval($input['percentage']) : 10.0;
-        $output['percentage'] = max(0.0, min(100.0, $percentage));
-        
-        $minimum_fee = isset($input['minimum_fee']) ? floatval($input['minimum_fee']) : 0.0;
-        $output['minimum_fee'] = max(0.0, $minimum_fee);
-        
-        $maximum_fee = isset($input['maximum_fee']) ? floatval($input['maximum_fee']) : 0.0;
-        $output['maximum_fee'] = max(0.0, $maximum_fee);
-        
-        $output['include_digital_products'] = isset($input['include_digital_products']) && $input['include_digital_products'] === 'yes' ? 'yes' : 'no';
-        
-        $excluded_categories = isset($input['excluded_categories']) ? (array) $input['excluded_categories'] : [];
-        $output['excluded_categories'] = array_map('intval', array_filter($excluded_categories, 'is_numeric'));
-        
-        $output['debug_mode'] = isset($input['debug_mode']) && $input['debug_mode'] === 'yes' ? 'yes' : 'no';
-        
-        if ($output['maximum_fee'] > 0 && $output['maximum_fee'] < $output['minimum_fee']) {
-            add_settings_error(
-                PluginConfig::OPTION_NAME->value,
-                'fee_mismatch',
-                __('Maximum fee must be higher than minimum fee.', PluginConfig::TEXTDOMAIN->value)
-            );
-            $output['maximum_fee'] = $output['minimum_fee'];
-        }
-        
-        return $output;
+        return WC_Percentage_Shipping_Validator::sanitize_options($input);
     }
 
     public function settings_link(array $links): array
@@ -538,6 +513,10 @@ final class WC_Percentage_Shipping_Plugin
     public function include_shipping_method(): void
     {
         require_once $this->plugin_dir . 'includes/class-wc-percentage-shipping-method.php';
+        require_once $this->plugin_dir . 'includes/class-wc-percentage-shipping-validator.php';
+        require_once $this->plugin_dir . 'includes/class-wc-percentage-shipping-calculator.php';
+        require_once $this->plugin_dir . 'includes/class-wc-percentage-shipping-cache.php';
+        require_once $this->plugin_dir . 'includes/class-wc-percentage-shipping-logger.php';
     }
 
     public function register_shipping_method(array $methods): array
@@ -587,39 +566,63 @@ final class WC_Percentage_Shipping_Plugin
 
     public function ajax_preview_calculation(): void
     {
-        if (!$this->check_rate_limit()) {
-            wp_send_json_error(['message' => __('Too many requests. Please try again later.', PluginConfig::TEXTDOMAIN->value)]);
-        }
+        $start_time = microtime(true);
+        
+        try {
+            if (!$this->check_rate_limit()) {
+                WC_Percentage_Shipping_Logger::log_security('Rate limit exceeded', [
+                    'user_id' => get_current_user_id(),
+                    'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+                ]);
+                wp_send_json_error(['message' => __('Too many requests. Please try again later.', PluginConfig::TEXTDOMAIN->value)]);
+            }
 
-        if (!current_user_can(PluginSecurity::CAPABILITY->value)) {
-            wp_send_json_error(['message' => __('Insufficient permissions.', PluginConfig::TEXTDOMAIN->value)]);
-        }
+            if (!current_user_can(PluginSecurity::CAPABILITY->value)) {
+                WC_Percentage_Shipping_Logger::log_security('Insufficient permissions', [
+                    'user_id' => get_current_user_id(),
+                    'capability_required' => PluginSecurity::CAPABILITY->value
+                ]);
+                wp_send_json_error(['message' => __('Insufficient permissions.', PluginConfig::TEXTDOMAIN->value)]);
+            }
 
-        check_ajax_referer('wc_percentage_shipping_preview', 'nonce');
-        
-        $cart_value = isset($_POST['cart_value']) ? max(0, floatval($_POST['cart_value'])) : 0;
-        $percentage = isset($_POST['percentage']) ? max(0, min(100, floatval($_POST['percentage']))) : 10;
-        $minimum_fee = isset($_POST['minimum_fee']) ? max(0, floatval($_POST['minimum_fee'])) : 0;
-        $maximum_fee = isset($_POST['maximum_fee']) ? max(0, floatval($_POST['maximum_fee'])) : 0;
-        
-        $calculated = $cart_value * ($percentage / 100);
-        
-        $final_cost = match (true) {
-            $minimum_fee > 0 && $calculated < $minimum_fee => $minimum_fee,
-            $maximum_fee > 0 && $calculated > $maximum_fee => $maximum_fee,
-            default => $calculated
-        };
-        
-        wp_send_json_success([
-            'calculated' => wc_price($calculated),
-            'final_cost' => wc_price($final_cost),
-            'explanation' => sprintf(
-                '%s × %s%% = %s',
-                wc_price($cart_value),
-                $percentage,
-                wc_price($final_cost)
-            ),
-        ]);
+            check_ajax_referer('wc_percentage_shipping_preview', 'nonce');
+            
+            $params = WC_Percentage_Shipping_Validator::validate_ajax_params($_POST);
+            $result = WC_Percentage_Shipping_Calculator::calculate_preview(
+                $params['cart_value'],
+                $params['percentage'],
+                $params['minimum_fee'],
+                $params['maximum_fee']
+            );
+            
+            $execution_time = (microtime(true) - $start_time) * 1000;
+            
+            WC_Percentage_Shipping_Logger::log_performance('AJAX preview calculation', $execution_time, [
+                'cart_value' => $params['cart_value'],
+                'percentage' => $params['percentage']
+            ]);
+            
+            wp_send_json_success([
+                'calculated' => wc_price($result['calculated']),
+                'final_cost' => wc_price($result['final_cost']),
+                'explanation' => $result['explanation'],
+            ]);
+            
+        } catch (InvalidArgumentException $e) {
+            WC_Percentage_Shipping_Logger::error('AJAX validation error', [
+                'error_message' => $e->getMessage(),
+                'input_data' => $_POST
+            ]);
+            wp_send_json_error(['message' => $e->getMessage()]);
+            
+        } catch (Exception $e) {
+            WC_Percentage_Shipping_Logger::error('AJAX calculation error', [
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'execution_time_ms' => (microtime(true) - $start_time) * 1000
+            ]);
+            wp_send_json_error(['message' => __('An error occurred during calculation. Please try again.', PluginConfig::TEXTDOMAIN->value)]);
+        }
     }
 
     private function check_rate_limit(): bool
@@ -652,6 +655,20 @@ final class WC_Percentage_Shipping_Plugin
         global $wpdb;
         $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wc_percentage_shipping_rate_limit_%'");
         $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_wc_percentage_shipping_rate_limit_%'");
+    }
+
+    public function clear_cache_on_settings_save(): void
+    {
+        // Only clear cache if our plugin settings were saved
+        if (isset($_POST[PluginConfig::OPTION_NAME->value])) {
+            WC_Percentage_Shipping_Cache::clear_all();
+            WC_Percentage_Shipping_Logger::info('Cache cleared due to settings change');
+        }
+    }
+
+    public function cleanup_old_logs(): void
+    {
+        WC_Percentage_Shipping_Logger::cleanup_old_logs(30); // Keep logs for 30 days
     }
 }
 
