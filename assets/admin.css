@@ -1,346 +1,346 @@
-/* WooCommerce Percentage Shipping - Modern Admin Interface */
+/* Woo Percentage Shipping - Yoast-Style Admin Interface */
 
 /* ==========================================================================
-   Base Styles
+   Reset & Base
    ========================================================================== */
 
 .wc-percentage-shipping-admin {
-    max-width: 1400px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    line-height: 1.6;
+    line-height: 1.5;
     color: #1d2327;
-    background: #f6f7f7;
-    min-height: calc(100vh - 32px);
+    margin: 0;
     padding: 0;
+    background: #f0f0f1;
+    min-height: 100vh;
+}
+
+.wc-percentage-shipping-admin * {
+    box-sizing: border-box;
 }
 
 /* ==========================================================================
-   Header Section
+   Layout
    ========================================================================== */
 
-.wc-percentage-shipping-header {
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-    border: 1px solid #e1e5e9;
-    border-radius: 12px;
-    margin: 0 0 24px 0;
-    padding: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.header-content {
+.admin-layout {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 20px;
+    min-height: calc(100vh - 32px);
+    background: #f0f0f1;
 }
 
-.header-main {
+/* ==========================================================================
+   Sidebar
+   ========================================================================== */
+
+.admin-sidebar {
+    width: 280px;
+    background: #f6f7f7;
+    border-right: 1px solid #e1e5e9;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    height: calc(100vh - 32px);
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid #e1e5e9;
+}
+
+.plugin-logo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.logo-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2327;
+    background: linear-gradient(135deg, #2271b1 0%, #135e96 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.version-badge {
+    font-size: 12px;
+    color: #646970;
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   Search
+   ========================================================================== */
+
+.sidebar-search {
+    position: relative;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e1e5e9;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 32px 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #2271b1;
+    box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    left: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #646970;
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.search-shortcut {
+    position: absolute;
+    right: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: #646970;
+    background: #f0f0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+}
+
+/* ==========================================================================
+   Navigation
+   ========================================================================== */
+
+.sidebar-nav {
     flex: 1;
+    padding: 0;
 }
 
-.page-title {
+.nav-section {
+    border-bottom: 1px solid #e1e5e9;
+}
+
+.nav-section-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.nav-section-header:hover {
+    background: #e9ecef;
+}
+
+.nav-icon {
+    font-size: 18px;
+    color: #646970;
+    margin-right: 12px;
+    width: 18px;
+    text-align: center;
+}
+
+.nav-title {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1d2327;
+}
+
+.nav-toggle {
+    font-size: 14px;
+    color: #646970;
+    transition: transform 0.2s ease;
+}
+
+.nav-section.expanded .nav-toggle {
+    transform: rotate(180deg);
+}
+
+.nav-section-content {
+    background: white;
+    border-top: 1px solid #e1e5e9;
+}
+
+.nav-item {
+    display: block;
+    padding: 10px 20px 10px 50px;
+    color: #646970;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.nav-item:hover {
+    color: #2271b1;
+    background: #f8f9fa;
+}
+
+.nav-item.active {
+    color: #2271b1;
+    background: #f0f6fc;
+    border-left-color: #2271b1;
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   Content Area
+   ========================================================================== */
+
+.admin-content {
+    flex: 1;
+    margin-left: 280px;
+    background: white;
+    padding: 0;
+    min-height: calc(100vh - 32px);
+}
+
+.admin-content h1 {
     font-size: 28px;
     font-weight: 600;
     margin: 0 0 8px 0;
     color: #1d2327;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    padding: 32px 40px 0 40px;
 }
 
-.version-badge {
-    background: linear-gradient(135deg, #2271b1 0%, #135e96 100%);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.page-description {
+.admin-content .description {
     font-size: 16px;
     color: #646970;
-    margin: 0;
+    margin: 0 0 32px 0;
+    padding: 0 40px;
     line-height: 1.5;
 }
 
-.header-status {
-    display: flex;
-    align-items: center;
-}
-
-.status-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-weight: 500;
-    font-size: 14px;
-}
-
-.status-badge.status-enabled {
-    background: linear-gradient(135deg, #00a32a 0%, #007a20 100%);
-    color: white;
-}
-
-.status-badge.status-disabled {
-    background: linear-gradient(135deg, #d63638 0%, #b32d2e 100%);
-    color: white;
-}
-
-.quick-actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.quick-actions .button {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.2s ease;
-}
-
-.quick-actions .button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
 /* ==========================================================================
-   Navigation Tabs
+   Form Tables (Yoast Style)
    ========================================================================== */
 
-.wc-percentage-shipping-tabs {
-    background: white;
-    border: 1px solid #e1e5e9;
-    border-radius: 8px;
-    padding: 0;
-    margin: 0 0 24px 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-}
-
-.wc-percentage-shipping-tabs .nav-tab {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 16px 24px;
+.admin-content .form-table {
     margin: 0;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    color: #646970;
-    font-weight: 500;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    position: relative;
+    padding: 0 40px 40px 40px;
+    width: 100%;
+    max-width: 800px;
 }
 
-.wc-percentage-shipping-tabs .nav-tab:first-child {
-    border-top-left-radius: 8px;
-}
-
-.wc-percentage-shipping-tabs .nav-tab:last-child {
-    border-top-right-radius: 8px;
-}
-
-.wc-percentage-shipping-tabs .nav-tab:hover {
-    background: #f6f7f7;
-    color: #2271b1;
-}
-
-.wc-percentage-shipping-tabs .nav-tab.nav-tab-active {
-    background: #2271b1;
-    color: white;
+.admin-content .form-table th {
+    width: 200px;
+    padding: 20px 10px 20px 0;
     font-weight: 600;
-}
-
-.wc-percentage-shipping-tabs .nav-tab.nav-tab-active::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: #135e96;
-}
-
-/* ==========================================================================
-   Main Content Layout
-   ========================================================================== */
-
-.wc-percentage-shipping-content {
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 24px;
-    align-items: start;
-}
-
-.main-content {
-    background: white;
-    border: 1px solid #e1e5e9;
-    border-radius: 12px;
-    padding: 32px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-/* ==========================================================================
-   Settings Sections
-   ========================================================================== */
-
-.tab-content {
-    animation: fadeIn 0.3s ease-out;
-}
-
-.settings-section {
-    margin-bottom: 32px;
-}
-
-.section-title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 20px;
-    font-weight: 600;
-    margin: 0 0 24px 0;
     color: #1d2327;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #f1f1f1;
+    vertical-align: top;
+    text-align: left;
 }
 
-.settings-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 24px;
+.admin-content .form-table td {
+    padding: 20px 10px;
+    vertical-align: top;
 }
 
-.setting-group {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 20px;
-    transition: all 0.2s ease;
-}
-
-.setting-group:hover {
-    border-color: #2271b1;
-    box-shadow: 0 2px 8px rgba(34, 113, 177, 0.1);
-}
-
-.setting-group.full-width {
-    grid-column: 1 / -1;
-}
-
-.setting-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
+.admin-content .form-table .description {
+    margin: 8px 0 0 0;
     font-size: 14px;
-    color: #1d2327;
-    margin-bottom: 12px;
-}
-
-.setting-control {
-    display: flex;
-    align-items: center;
+    color: #646970;
+    line-height: 1.4;
 }
 
 /* ==========================================================================
    Form Controls
    ========================================================================== */
 
-.input-group {
+.regular-text {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.regular-text:focus {
+    outline: none;
+    border-color: #2271b1;
+    box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.1);
+}
+
+.input-with-prefix,
+.input-with-suffix {
     display: flex;
     align-items: center;
     background: white;
-    border: 2px solid #e1e5e9;
-    border-radius: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
     overflow: hidden;
+    max-width: 400px;
     transition: all 0.2s ease;
 }
 
-.input-group:focus-within {
+.input-with-prefix:focus-within,
+.input-with-suffix:focus-within {
     border-color: #2271b1;
-    box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.1);
+    box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.1);
 }
 
-.input-group input {
+.input-with-prefix .regular-text,
+.input-with-suffix .regular-text {
     border: none;
-    padding: 12px 16px;
-    font-size: 14px;
-    background: transparent;
-    flex: 1;
-    outline: none;
+    box-shadow: none;
+    padding: 8px 12px;
+    max-width: none;
 }
 
-.input-prefix,
-.input-suffix {
-    padding: 12px 16px;
+.input-with-prefix .regular-text:focus,
+.input-with-suffix .regular-text:focus {
+    box-shadow: none;
+}
+
+.prefix,
+.suffix {
+    padding: 8px 12px;
     background: #f6f7f7;
-    font-weight: 500;
     color: #646970;
+    font-weight: 500;
     border: none;
     white-space: nowrap;
+    font-size: 14px;
 }
 
-.input-prefix {
+.prefix {
     border-right: 1px solid #e1e5e9;
 }
 
-.input-suffix {
+.suffix {
     border-left: 1px solid #e1e5e9;
-}
-
-.percentage-input {
-    width: 120px;
-}
-
-.currency-input {
-    width: 140px;
-}
-
-.category-select {
-    width: 100%;
-    min-height: 120px;
-    padding: 12px;
-    border: 2px solid #e1e5e9;
-    border-radius: 6px;
-    background: white;
-    font-size: 14px;
-    transition: all 0.2s ease;
-}
-
-.category-select:focus {
-    border-color: #2271b1;
-    box-shadow: 0 0 0 3px rgba(34, 113, 177, 0.1);
-    outline: none;
 }
 
 /* ==========================================================================
    Toggle Switch
    ========================================================================== */
 
-.toggle-switch {
+.switch {
     position: relative;
     display: inline-block;
-    width: 60px;
-    height: 32px;
+    width: 50px;
+    height: 26px;
 }
 
-.toggle-switch input {
+.switch input {
     opacity: 0;
     width: 0;
     height: 0;
@@ -353,171 +353,52 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: #ccc;
+    background-color: #ccc;
     transition: 0.3s;
-    border-radius: 32px;
+    border-radius: 26px;
 }
 
 .slider:before {
     position: absolute;
     content: "";
-    height: 24px;
-    width: 24px;
-    left: 4px;
-    bottom: 4px;
-    background: white;
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
     transition: 0.3s;
     border-radius: 50%;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input:checked + .slider {
-    background: #2271b1;
+    background-color: #2271b1;
 }
 
 input:checked + .slider:before {
-    transform: translateX(28px);
+    transform: translateX(24px);
 }
 
 /* ==========================================================================
-   Sidebar Widgets
+   Select Elements
    ========================================================================== */
 
-.sidebar-widget {
-    background: white;
-    border: 1px solid #e1e5e9;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+select.regular-text {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 8px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 32px;
 }
 
-.widget-title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0 0 20px 0;
-    color: #1d2327;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #f1f1f1;
-}
+/* ==========================================================================
+   Textarea
+   ========================================================================== */
 
-/* Live Preview */
-.preview-content {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 8px;
-    padding: 20px;
-}
-
-.preview-example p {
-    margin: 8px 0;
-    font-size: 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.preview-example strong {
-    color: #1d2327;
-}
-
-/* System Info */
-.system-info {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.info-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #f1f1f1;
-}
-
-.info-item:last-child {
-    border-bottom: none;
-}
-
-.info-label {
-    font-weight: 500;
-    color: #646970;
-}
-
-.info-value {
-    font-weight: 600;
-    color: #1d2327;
-}
-
-/* Quick Links */
-.quick-links {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.quick-link {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
-    color: #2271b1;
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.quick-link:hover {
-    background: #2271b1;
-    color: white;
-    transform: translateX(4px);
-}
-
-/* Security Features */
-.security-features {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.security-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    border: 1px solid #c3e6cb;
-    border-radius: 6px;
-    color: #155724;
-    font-weight: 500;
-}
-
-.security-item .dashicons {
-    color: #28a745;
-}
-
-/* Performance Info */
-.cache-info,
-.rate-limit-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.cache-status,
-.rate-limit-status {
-    font-weight: 600;
-    color: #00a32a;
-}
-
-.cache-details {
-    font-size: 12px;
-    color: #646970;
+textarea.regular-text {
+    min-height: 80px;
+    resize: vertical;
+    font-family: inherit;
 }
 
 /* ==========================================================================
@@ -525,68 +406,102 @@ input:checked + .slider:before {
    ========================================================================== */
 
 .form-actions {
+    padding: 32px 40px;
+    border-top: 1px solid #e1e5e9;
+    background: #f8f9fa;
     display: flex;
     gap: 12px;
-    justify-content: flex-start;
-    padding-top: 24px;
-    border-top: 2px solid #f1f1f1;
-    margin-top: 32px;
-}
-
-.form-actions .button {
-    display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    font-weight: 600;
-    border-radius: 6px;
+}
+
+.button-primary,
+.button-secondary {
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
     transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.form-actions .button-primary {
-    background: linear-gradient(135deg, #2271b1 0%, #135e96 100%);
+.button-primary {
+    background: #2271b1;
+    color: white;
+    border-color: #2271b1;
+}
+
+.button-primary:hover {
+    background: #135e96;
     border-color: #135e96;
-}
-
-.form-actions .button-primary:hover {
-    background: linear-gradient(135deg, #135e96 0%, #0a4b73 100%);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(34, 113, 177, 0.3);
 }
 
-.form-actions .button-secondary {
+.button-secondary {
     background: white;
-    border: 2px solid #e1e5e9;
     color: #646970;
+    border-color: #e1e5e9;
 }
 
-.form-actions .button-secondary:hover {
+.button-secondary:hover {
     border-color: #2271b1;
     color: #2271b1;
 }
 
 /* ==========================================================================
-   Help Tips
+   Tab Content
    ========================================================================== */
 
-.wc-percentage-shipping-help-tip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    background: #2271b1;
-    color: white;
-    border-radius: 50%;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: help;
-    transition: all 0.2s ease;
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
 }
 
-.wc-percentage-shipping-help-tip:hover {
-    background: #135e96;
-    transform: scale(1.1);
+.tab-content.active {
+    display: block;
+}
+
+/* ==========================================================================
+   Preview & Analytics Cards
+   ========================================================================== */
+
+.preview-container,
+.analytics-container {
+    padding: 0 40px 40px 40px;
+}
+
+.preview-card,
+.analytics-card {
+    background: white;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.preview-header,
+.analytics-header {
+    margin-bottom: 20px;
+}
+
+.preview-header h3,
+.analytics-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #1d2327;
+}
+
+.preview-header p,
+.analytics-header p {
+    font-size: 14px;
+    color: #646970;
+    margin: 0;
 }
 
 /* ==========================================================================
@@ -596,7 +511,7 @@ input:checked + .slider:before {
 @keyframes fadeIn {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(10px);
     }
     to {
         opacity: 1;
@@ -604,94 +519,114 @@ input:checked + .slider:before {
     }
 }
 
-@keyframes slideIn {
-    from {
-        transform: translateX(-20px);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-.sidebar-widget {
-    animation: slideIn 0.3s ease-out;
-}
-
 /* ==========================================================================
    Responsive Design
    ========================================================================== */
 
-@media (max-width: 1200px) {
-    .wc-percentage-shipping-content {
-        grid-template-columns: 1fr;
+@media (max-width: 1024px) {
+    .admin-sidebar {
+        width: 260px;
     }
     
-    .sidebar {
-        order: -1;
+    .admin-content {
+        margin-left: 260px;
     }
     
-    .settings-grid {
-        grid-template-columns: 1fr;
+    .admin-content h1,
+    .admin-content .description,
+    .admin-content .form-table,
+    .preview-container,
+    .analytics-container {
+        padding-left: 32px;
+        padding-right: 32px;
     }
 }
 
 @media (max-width: 768px) {
-    .wc-percentage-shipping-admin {
-        padding: 16px;
-    }
-    
-    .wc-percentage-shipping-header,
-    .main-content,
-    .sidebar-widget {
-        padding: 20px;
-    }
-    
-    .header-content {
+    .admin-layout {
         flex-direction: column;
-        gap: 16px;
     }
     
-    .quick-actions {
+    .admin-sidebar {
+        position: static;
         width: 100%;
-        justify-content: flex-start;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid #e1e5e9;
     }
     
-    .wc-percentage-shipping-tabs {
-        overflow-x: auto;
+    .admin-content {
+        margin-left: 0;
     }
     
-    .wc-percentage-shipping-tabs .nav-tab {
-        white-space: nowrap;
-        min-width: 120px;
+    .admin-content h1,
+    .admin-content .description,
+    .admin-content .form-table,
+    .preview-container,
+    .analytics-container {
+        padding-left: 20px;
+        padding-right: 20px;
     }
     
     .form-actions {
+        padding: 20px;
         flex-direction: column;
+        align-items: stretch;
     }
     
-    .form-actions .button {
+    .button-primary,
+    .button-secondary {
         width: 100%;
         justify-content: center;
+    }
+    
+    .sidebar-nav {
+        max-height: 300px;
+        overflow-y: auto;
     }
 }
 
 @media (max-width: 480px) {
-    .page-title {
+    .admin-content h1 {
         font-size: 24px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
     }
     
-    .settings-grid {
-        gap: 16px;
+    .admin-content .form-table th,
+    .admin-content .form-table td {
+        padding: 16px 0;
+        display: block;
+        width: 100%;
     }
     
-    .setting-group {
-        padding: 16px;
+    .admin-content .form-table th {
+        padding-bottom: 8px;
     }
+    
+    .input-with-prefix,
+    .input-with-suffix,
+    .regular-text {
+        max-width: 100%;
+    }
+}
+
+/* ==========================================================================
+   WordPress Admin Compatibility
+   ========================================================================== */
+
+.wc-percentage-shipping-admin .notice {
+    margin: 16px 0;
+}
+
+.wc-percentage-shipping-admin .notice.notice-error {
+    border-left-color: #d63638;
+}
+
+.wc-percentage-shipping-admin .notice.notice-success {
+    border-left-color: #00a32a;
+}
+
+.wc-percentage-shipping-admin .notice.notice-warning {
+    border-left-color: #f0b849;
 }
 
 /* ==========================================================================
@@ -699,44 +634,24 @@ input:checked + .slider:before {
    ========================================================================== */
 
 @media print {
-    .wc-percentage-shipping-header,
-    .wc-percentage-shipping-tabs,
-    .sidebar,
+    .admin-sidebar,
     .form-actions {
         display: none;
     }
     
-    .main-content {
-        border: none;
-        box-shadow: none;
+    .admin-content {
+        margin-left: 0;
         padding: 0;
     }
     
-    .settings-section {
-        page-break-inside: avoid;
-    }
-}
-
-/* ==========================================================================
-   High Contrast Mode
-   ========================================================================== */
-
-@media (prefers-contrast: high) {
-    .wc-percentage-shipping-admin {
-        background: white;
+    .tab-content {
+        display: block !important;
     }
     
-    .wc-percentage-shipping-header,
-    .main-content,
-    .sidebar-widget {
-        border: 2px solid #000;
-    }
-    
-    .setting-group {
-        border: 1px solid #000;
-    }
-    
-    .input-group {
-        border: 2px solid #000;
+    .admin-content h1,
+    .admin-content .description,
+    .admin-content .form-table {
+        padding-left: 0;
+        padding-right: 0;
     }
 }

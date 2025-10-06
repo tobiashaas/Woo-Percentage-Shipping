@@ -1,9 +1,9 @@
 /**
- * WooCommerce Percentage Shipping - Modern Admin Interface
- * Vanilla JavaScript implementation with modern features
+ * Woo Percentage Shipping - Yoast-Style Admin Interface
+ * Modern vertical sidebar navigation with search functionality
  */
 
-// DOM Ready equivalent
+// DOM Ready
 function domReady(callback) {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', callback);
@@ -12,82 +12,200 @@ function domReady(callback) {
     }
 }
 
-// Modern Tooltip System
-class ModernTooltip {
+// Yoast-Style Navigation System
+class YoastNavigation {
     constructor() {
-        this.tooltip = null;
+        this.sections = document.querySelectorAll('.nav-section');
+        this.navItems = document.querySelectorAll('.nav-item');
+        this.tabContents = document.querySelectorAll('.tab-content');
+        this.searchInput = document.getElementById('settings-search');
         this.init();
     }
 
     init() {
-        this.createTooltipElement();
         this.bindEvents();
-    }
-
-    createTooltipElement() {
-        this.tooltip = document.createElement('div');
-        this.tooltip.className = 'wc-percentage-shipping-tooltip';
-        this.tooltip.style.cssText = `
-            position: absolute;
-            background: #1d2327;
-            color: white;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            z-index: 9999;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            white-space: nowrap;
-            max-width: 300px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            font-weight: 500;
-        `;
-        document.body.appendChild(this.tooltip);
+        this.setActiveTab('basic-settings');
     }
 
     bindEvents() {
-        const helpTips = document.querySelectorAll('.wc-percentage-shipping-help-tip');
-        
-        helpTips.forEach(tip => {
-            tip.addEventListener('mouseenter', (e) => this.showTooltip(e));
-            tip.addEventListener('mouseleave', () => this.hideTooltip());
-            tip.addEventListener('mousemove', (e) => this.moveTooltip(e));
+        // Section toggle events
+        this.sections.forEach(section => {
+            const header = section.querySelector('.nav-section-header');
+            if (header) {
+                header.addEventListener('click', () => this.toggleSection(section));
+            }
         });
+
+        // Nav item click events
+        this.navItems.forEach(item => {
+            item.addEventListener('click', (e) => this.handleNavClick(e));
+        });
+
+        // Search functionality
+        if (this.searchInput) {
+            this.searchInput.addEventListener('input', (e) => this.handleSearch(e));
+            this.searchInput.addEventListener('keydown', (e) => this.handleSearchKeyboard(e));
+        }
+
+        // Global keyboard shortcuts
+        document.addEventListener('keydown', (e) => this.handleGlobalKeyboard(e));
     }
 
-    showTooltip(event) {
-        const tipText = event.target.getAttribute('title') || event.target.getAttribute('data-tip');
-        if (!tipText) return;
-
-        event.target.setAttribute('data-original-title', tipText);
-        event.target.removeAttribute('title');
-
-        this.tooltip.textContent = tipText;
-        this.tooltip.style.opacity = '1';
-        this.moveTooltip(event);
-    }
-
-    hideTooltip() {
-        this.tooltip.style.opacity = '0';
+    toggleSection(section) {
+        const content = section.querySelector('.nav-section-content');
+        const toggle = section.querySelector('.nav-toggle');
         
-        const elements = document.querySelectorAll('[data-original-title]');
-        elements.forEach(element => {
-            const originalTitle = element.getAttribute('data-original-title');
-            if (originalTitle) {
-                element.setAttribute('title', originalTitle);
-                element.removeAttribute('data-original-title');
+        if (!content || !toggle) return;
+
+        const isExpanded = content.style.display !== 'none';
+        
+        if (isExpanded) {
+            content.style.display = 'none';
+            section.classList.remove('expanded');
+            toggle.classList.remove('dashicons-arrow-up-alt2');
+            toggle.classList.add('dashicons-arrow-down-alt2');
+        } else {
+            content.style.display = 'block';
+            section.classList.add('expanded');
+            toggle.classList.remove('dashicons-arrow-down-alt2');
+            toggle.classList.add('dashicons-arrow-up-alt2');
+        }
+    }
+
+    handleNavClick(event) {
+        event.preventDefault();
+        const tabId = event.currentTarget.getAttribute('data-tab');
+        if (tabId) {
+            this.setActiveTab(tabId);
+        }
+    }
+
+    setActiveTab(tabId) {
+        // Remove active class from all nav items
+        this.navItems.forEach(item => item.classList.remove('active'));
+        
+        // Add active class to current nav item
+        const activeItem = document.querySelector(`[data-tab="${tabId}"]`);
+        if (activeItem) {
+            activeItem.classList.add('active');
+            
+            // Expand parent section
+            const parentSection = activeItem.closest('.nav-section');
+            if (parentSection) {
+                const content = parentSection.querySelector('.nav-section-content');
+                const toggle = parentSection.querySelector('.nav-toggle');
+                
+                if (content && toggle) {
+                    content.style.display = 'block';
+                    parentSection.classList.add('expanded');
+                    toggle.classList.remove('dashicons-arrow-down-alt2');
+                    toggle.classList.add('dashicons-arrow-up-alt2');
+                }
+            }
+        }
+
+        // Hide all tab contents
+        this.tabContents.forEach(content => content.classList.remove('active'));
+        
+        // Show active tab content
+        const activeContent = document.getElementById(`tab-${tabId}`);
+        if (activeContent) {
+            activeContent.classList.add('active');
+        }
+
+        // Update URL without reload
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabId);
+        window.history.replaceState({}, '', url);
+    }
+
+    handleSearch(event) {
+        const query = event.target.value.toLowerCase().trim();
+        
+        if (query === '') {
+            this.showAllItems();
+            return;
+        }
+
+        this.navItems.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const parentSection = item.closest('.nav-section');
+            
+            if (text.includes(query)) {
+                item.style.display = 'block';
+                item.classList.add('search-highlight');
+                // Expand parent section
+                if (parentSection) {
+                    const content = parentSection.querySelector('.nav-section-content');
+                    const toggle = parentSection.querySelector('.nav-toggle');
+                    
+                    if (content && toggle) {
+                        content.style.display = 'block';
+                        parentSection.classList.add('expanded');
+                        toggle.classList.remove('dashicons-arrow-down-alt2');
+                        toggle.classList.add('dashicons-arrow-up-alt2');
+                    }
+                }
+            } else {
+                item.style.display = 'none';
+                item.classList.remove('search-highlight');
+            }
+        });
+
+        // Hide sections with no visible items
+        this.sections.forEach(section => {
+            const visibleItems = section.querySelectorAll('.nav-item:not([style*="display: none"])');
+            if (visibleItems.length === 0 && query !== '') {
+                section.style.display = 'none';
+            } else {
+                section.style.display = 'block';
             }
         });
     }
 
-    moveTooltip(event) {
-        const tooltipRect = this.tooltip.getBoundingClientRect();
-        const x = event.pageX + 15;
-        const y = event.pageY - tooltipRect.height - 5;
+    showAllItems() {
+        this.navItems.forEach(item => {
+            item.style.display = 'block';
+            item.classList.remove('search-highlight');
+        });
         
-        this.tooltip.style.left = x + 'px';
-        this.tooltip.style.top = y + 'px';
+        this.sections.forEach(section => {
+            section.style.display = 'block';
+        });
+    }
+
+    handleSearchKeyboard(event) {
+        if (event.key === 'Escape') {
+            this.searchInput.value = '';
+            this.showAllItems();
+            this.searchInput.blur();
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            const firstMatch = document.querySelector('.nav-item.search-highlight');
+            if (firstMatch) {
+                firstMatch.click();
+            }
+        }
+    }
+
+    handleGlobalKeyboard(event) {
+        // Ctrl+K or Cmd+K for search focus
+        if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+            event.preventDefault();
+            if (this.searchInput) {
+                this.searchInput.focus();
+                this.searchInput.select();
+            }
+        }
+
+        // Ctrl+S or Cmd+S for save
+        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+            event.preventDefault();
+            const form = document.getElementById('settings-form');
+            if (form) {
+                form.requestSubmit();
+            }
+        }
     }
 }
 
@@ -97,10 +215,12 @@ class LivePreview {
         this.percentageInput = document.querySelector('input[name*="percentage"]');
         this.minFeeInput = document.querySelector('input[name*="minimum_fee"]');
         this.maxFeeInput = document.querySelector('input[name*="maximum_fee"]');
-        this.calculationPreview = document.getElementById('calculation-preview');
-        this.finalFeePreview = document.getElementById('final-fee-preview');
         
-        if (this.percentageInput && this.calculationPreview) {
+        this.init();
+    }
+
+    init() {
+        if (this.percentageInput) {
             this.bindEvents();
             this.updatePreview();
         }
@@ -134,18 +254,27 @@ class LivePreview {
         
         const currency = this.getCurrencySymbol();
         
-        if (this.calculationPreview) {
-            this.calculationPreview.innerHTML = `${currency}${exampleValue} × ${percentage}% = ${currency}${calculated.toFixed(2)}`;
+        // Update preview elements if they exist
+        const cartValueEl = document.getElementById('cart-value');
+        const percentageCalcEl = document.getElementById('percentage-calculation');
+        const finalCostEl = document.getElementById('final-cost');
+        
+        if (cartValueEl) {
+            cartValueEl.textContent = `${currency}50.00`;
         }
         
-        if (this.finalFeePreview) {
-            this.finalFeePreview.innerHTML = `${currency}${finalCost.toFixed(2)}`;
+        if (percentageCalcEl) {
+            percentageCalcEl.textContent = `${currency}50.00 × ${percentage}% = ${currency}${calculated.toFixed(2)}`;
+        }
+        
+        if (finalCostEl) {
+            finalCostEl.textContent = `${currency}${finalCost.toFixed(2)}`;
         }
     }
 
     getCurrencySymbol() {
-        const currencyElement = document.querySelector('.input-prefix');
-        return currencyElement ? currencyElement.textContent : '€';
+        const prefix = document.querySelector('.prefix');
+        return prefix ? prefix.textContent : '€';
     }
 
     debounceUpdate() {
@@ -156,15 +285,16 @@ class LivePreview {
     }
 }
 
-// Enhanced Form Validation
+// Form Validation
 class FormValidation {
     constructor() {
-        this.form = document.querySelector('.settings-form');
-        this.errors = [];
-        
+        this.form = document.getElementById('settings-form');
+        this.init();
+    }
+
+    init() {
         if (this.form) {
             this.bindEvents();
-            this.addVisualValidation();
         }
     }
 
@@ -179,31 +309,34 @@ class FormValidation {
     }
 
     validateForm(event) {
-        this.errors = [];
-        
         const percentageInput = this.form.querySelector('input[name*="percentage"]');
         const minFeeInput = this.form.querySelector('input[name*="minimum_fee"]');
         const maxFeeInput = this.form.querySelector('input[name*="maximum_fee"]');
         
+        let isValid = true;
+        
+        // Validate percentage
         if (percentageInput) {
             const percentage = parseFloat(percentageInput.value);
             if (isNaN(percentage) || percentage < 0 || percentage > 100) {
-                this.addError(percentageInput, 'Percentage must be between 0 and 100.');
+                this.showFieldError(percentageInput, 'Percentage must be between 0 and 100.');
+                isValid = false;
             }
         }
         
+        // Validate fee relationship
         if (minFeeInput && maxFeeInput) {
             const minFee = parseFloat(minFeeInput.value) || 0;
             const maxFee = parseFloat(maxFeeInput.value) || 0;
             
             if (maxFee > 0 && maxFee < minFee) {
-                this.addError(maxFeeInput, 'Maximum fee must be higher than minimum fee.');
+                this.showFieldError(maxFeeInput, 'Maximum fee must be higher than minimum fee.');
+                isValid = false;
             }
         }
         
-        if (this.errors.length > 0) {
+        if (!isValid) {
             event.preventDefault();
-            this.showErrors();
             return false;
         }
         
@@ -218,202 +351,158 @@ class FormValidation {
         const max = parseFloat(input.getAttribute('max')) || Infinity;
         
         if (isNaN(value) || value < min || value > max) {
-            this.addError(input, `Value must be between ${min} and ${max === Infinity ? '∞' : max}`);
+            this.showFieldError(input, `Value must be between ${min} and ${max === Infinity ? '∞' : max}`);
         }
     }
 
-    addError(input, message) {
-        this.errors.push({ input, message });
+    showFieldError(input, message) {
         input.classList.add('error');
         
-        const errorElement = document.createElement('div');
-        errorElement.className = 'field-error';
-        errorElement.textContent = message;
-        errorElement.style.cssText = `
+        const errorEl = document.createElement('div');
+        errorEl.className = 'field-error';
+        errorEl.textContent = message;
+        errorEl.style.cssText = `
             color: #d63638;
             font-size: 12px;
-            margin-top: 8px;
+            margin-top: 4px;
             font-weight: 500;
         `;
         
-        input.closest('.setting-control').appendChild(errorElement);
+        const td = input.closest('td');
+        if (td) {
+            td.appendChild(errorEl);
+        }
     }
 
     clearFieldError(input) {
         input.classList.remove('error');
-        const errorElement = input.closest('.setting-control').querySelector('.field-error');
-        if (errorElement) {
-            errorElement.remove();
-        }
-    }
-
-    showErrors() {
-        const firstError = this.errors[0];
-        if (firstError) {
-            firstError.input.focus();
-            firstError.input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }
-
-    addVisualValidation() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .input-group.error {
-                border-color: #d63638 !important;
-                box-shadow: 0 0 0 3px rgba(214, 54, 56, 0.1) !important;
+        const td = input.closest('td');
+        if (td) {
+            const errorEl = td.querySelector('.field-error');
+            if (errorEl) {
+                errorEl.remove();
             }
-            .input-group:valid {
-                border-color: #00a32a;
-            }
-        `;
-        document.head.appendChild(style);
+        }
     }
 }
 
-// AJAX Handler with Modern Fetch API
-class AjaxHandler {
+// Enhanced Admin Interface
+class ModernAdminInterface {
     constructor() {
-        this.ajaxUrl = window.wcPercentageShipping?.ajaxUrl || '';
-        this.nonce = window.wcPercentageShipping?.nonce || '';
-        this.requestQueue = [];
-        this.isProcessing = false;
+        this.navigation = new YoastNavigation();
+        this.livePreview = new LivePreview();
+        this.formValidation = new FormValidation();
+        
+        this.init();
     }
 
-    async clearCache() {
-        if (!this.ajaxUrl || !this.nonce) {
-            throw new Error('AJAX configuration missing');
-        }
-
-        const formData = new FormData();
-        formData.append('action', 'wc_percentage_shipping_clear_cache');
-        formData.append('nonce', this.nonce);
-
-        const response = await fetch(this.ajaxUrl, {
-            method: 'POST',
-            body: formData,
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!data.success) {
-            throw new Error(data.data.message || 'Unknown error');
-        }
-
-        return data.data;
+    init() {
+        this.addEventListeners();
+        this.enhanceUI();
     }
 
-    async exportSettings() {
-        if (!this.ajaxUrl || !this.nonce) {
-            throw new Error('AJAX configuration missing');
+    addEventListeners() {
+        // Form submission enhancement
+        const form = document.getElementById('settings-form');
+        if (form) {
+            form.addEventListener('submit', (e) => this.handleFormSubmit(e));
         }
 
-        const formData = new FormData();
-        formData.append('action', 'wc_percentage_shipping_export');
-        formData.append('nonce', this.nonce);
-
-        const response = await fetch(this.ajaxUrl, {
-            method: 'POST',
-            body: formData,
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!data.success) {
-            throw new Error(data.data.message || 'Unknown error');
-        }
-
-        return data.data;
-    }
-}
-
-// Quick Actions Handler
-class QuickActions {
-    constructor() {
-        this.ajaxHandler = new AjaxHandler();
-        this.bindEvents();
-    }
-
-    bindEvents() {
-        const clearCacheBtn = document.getElementById('clear-cache');
-        const exportBtn = document.getElementById('export-settings');
+        // Reset settings button
         const resetBtn = document.getElementById('reset-settings');
-
-        if (clearCacheBtn) {
-            clearCacheBtn.addEventListener('click', () => this.handleClearCache());
-        }
-
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.handleExportSettings());
-        }
-
         if (resetBtn) {
             resetBtn.addEventListener('click', () => this.handleResetSettings());
         }
     }
 
-    async handleClearCache() {
-        const button = document.getElementById('clear-cache');
-        const originalText = button.innerHTML;
-        
-        try {
-            button.innerHTML = '<span class="dashicons dashicons-update"></span> Clearing...';
-            button.disabled = true;
-            
-            await this.ajaxHandler.clearCache();
-            this.showNotification('Cache cleared successfully!', 'success');
-        } catch (error) {
-            this.showNotification('Failed to clear cache: ' + error.message, 'error');
-        } finally {
-            button.innerHTML = originalText;
-            button.disabled = false;
+    enhanceUI() {
+        this.addLoadingStates();
+        this.addVisualFeedback();
+        this.addSearchHighlighting();
+    }
+
+    addLoadingStates() {
+        const submitButton = document.getElementById('save-settings');
+        if (submitButton) {
+            submitButton.addEventListener('click', () => {
+                const originalText = submitButton.textContent;
+                submitButton.textContent = 'Saving...';
+                submitButton.disabled = true;
+                
+                setTimeout(() => {
+                    submitButton.textContent = originalText;
+                    submitButton.disabled = false;
+                }, 2000);
+            });
         }
     }
 
-    async handleExportSettings() {
-        const button = document.getElementById('export-settings');
-        const originalText = button.innerHTML;
-        
-        try {
-            button.innerHTML = '<span class="dashicons dashicons-download"></span> Exporting...';
-            button.disabled = true;
+    addVisualFeedback() {
+        // Add hover effects to form rows
+        const formRows = document.querySelectorAll('.form-table tr');
+        formRows.forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.style.backgroundColor = '#f8f9fa';
+            });
             
-            const data = await this.ajaxHandler.exportSettings();
-            this.downloadFile(data, 'wc-percentage-shipping-settings.json');
-            this.showNotification('Settings exported successfully!', 'success');
-        } catch (error) {
-            this.showNotification('Failed to export settings: ' + error.message, 'error');
-        } finally {
-            button.innerHTML = originalText;
-            button.disabled = false;
+            row.addEventListener('mouseleave', () => {
+                row.style.backgroundColor = '';
+            });
+        });
+
+        // Add focus effects to inputs
+        const inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                input.style.borderColor = '#2271b1';
+                input.style.boxShadow = '0 0 0 2px rgba(34, 113, 177, 0.1)';
+            });
+            
+            input.addEventListener('blur', () => {
+                input.style.borderColor = '#ddd';
+                input.style.boxShadow = 'none';
+            });
+        });
+    }
+
+    addSearchHighlighting() {
+        // Add CSS for search highlighting
+        if (!document.querySelector('#search-highlight-styles')) {
+            const style = document.createElement('style');
+            style.id = 'search-highlight-styles';
+            style.textContent = `
+                .nav-item.search-highlight {
+                    background: #fff3cd !important;
+                    color: #856404 !important;
+                    font-weight: 500;
+                }
+                
+                .nav-item.search-highlight::before {
+                    content: "🔍";
+                    margin-right: 8px;
+                }
+            `;
+            document.head.appendChild(style);
         }
+    }
+
+    handleFormSubmit(event) {
+        const form = event.target;
+        form.style.opacity = '0.8';
+        
+        setTimeout(() => {
+            form.style.opacity = '1';
+        }, 1000);
     }
 
     handleResetSettings() {
         if (confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
-            const form = document.querySelector('.settings-form');
+            const form = document.getElementById('settings-form');
             if (form) {
                 form.reset();
                 this.showNotification('Settings reset to defaults. Click "Save Changes" to apply.', 'warning');
             }
         }
-    }
-
-    downloadFile(data, filename) {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
     }
 
     showNotification(message, type = 'info') {
@@ -428,15 +517,6 @@ class QuickActions {
             animation: slideInRight 0.3s ease-out;
         `;
         
-        const colors = {
-            success: '#00a32a',
-            error: '#d63638',
-            warning: '#f0b849',
-            info: '#2271b1'
-        };
-        
-        notification.style.borderLeftColor = colors[type] || colors.info;
-        
         notification.innerHTML = `
             <p style="margin: 0; padding: 12px; font-weight: 500;">${message}</p>
             <button type="button" class="notice-dismiss" style="position: absolute; top: 0; right: 0; border: none; background: none; padding: 8px; cursor: pointer;">
@@ -446,10 +526,10 @@ class QuickActions {
         
         document.body.appendChild(notification);
         
-        // Auto-dismiss after 5 seconds
+        // Auto-dismiss after 4 seconds
         setTimeout(() => {
             notification.remove();
-        }, 5000);
+        }, 4000);
         
         // Manual dismiss
         notification.querySelector('.notice-dismiss').addEventListener('click', () => {
@@ -458,102 +538,14 @@ class QuickActions {
     }
 }
 
-// Enhanced Admin Interface
-class ModernAdminInterface {
-    constructor() {
-        this.tooltip = new ModernTooltip();
-        this.livePreview = new LivePreview();
-        this.formValidation = new FormValidation();
-        this.quickActions = new QuickActions();
-        
-        this.init();
-    }
-
-    init() {
-        this.addEventListeners();
-        this.enhanceUI();
-        this.addAnimations();
-    }
-
-    addEventListeners() {
-        // Form submission enhancement
-        const form = document.querySelector('.settings-form');
-        if (form) {
-            form.addEventListener('submit', (e) => this.handleFormSubmit(e));
-        }
-
-        // Tab switching enhancement
-        const tabs = document.querySelectorAll('.nav-tab');
-        tabs.forEach(tab => {
-            tab.addEventListener('click', (e) => this.handleTabSwitch(e));
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => this.handleKeyboardShortcuts(e));
-    }
-
-    enhanceUI() {
-        this.addLoadingStates();
-        this.enhanceAccessibility();
-        this.addFormEnhancements();
-    }
-
-    addLoadingStates() {
-        const submitButton = document.getElementById('save-settings');
-        if (submitButton) {
-            submitButton.addEventListener('click', () => {
-                submitButton.innerHTML = '<span class="dashicons dashicons-yes"></span> Saving...';
-                submitButton.disabled = true;
-                
-                setTimeout(() => {
-                    submitButton.innerHTML = 'Save Changes';
-                    submitButton.disabled = false;
-                }, 3000);
-            });
-        }
-    }
-
-    enhanceAccessibility() {
-        // Add ARIA labels
-        const inputs = document.querySelectorAll('input, select');
-        inputs.forEach(input => {
-            if (!input.getAttribute('aria-label') && !input.getAttribute('aria-labelledby')) {
-                const label = input.closest('.setting-group')?.querySelector('.setting-label')?.textContent;
-                if (label) {
-                    input.setAttribute('aria-label', label.trim());
-                }
-            }
-        });
-
-        // Add focus management
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Tab') {
-                this.manageFocus(e);
-            }
-        });
-    }
-
-    addFormEnhancements() {
-        // Add visual feedback for form interactions
-        const settingGroups = document.querySelectorAll('.setting-group');
-        settingGroups.forEach(group => {
-            const input = group.querySelector('input, select');
-            if (input) {
-                input.addEventListener('focus', () => {
-                    group.style.transform = 'translateY(-2px)';
-                    group.style.boxShadow = '0 4px 12px rgba(34, 113, 177, 0.15)';
-                });
-                
-                input.addEventListener('blur', () => {
-                    group.style.transform = 'translateY(0)';
-                    group.style.boxShadow = '0 2px 8px rgba(34, 113, 177, 0.1)';
-                });
-            }
-        });
-    }
-
-    addAnimations() {
+// Initialize everything when DOM is ready
+domReady(() => {
+    new ModernAdminInterface();
+    
+    // Add global styles for animations
+    if (!document.querySelector('#wc-admin-animations')) {
         const style = document.createElement('style');
+        style.id = 'wc-admin-animations';
         style.textContent = `
             @keyframes slideInRight {
                 from {
@@ -566,94 +558,12 @@ class ModernAdminInterface {
                 }
             }
             
-            @keyframes pulse {
-                0% { transform: scale(1); }
-                50% { transform: scale(1.05); }
-                100% { transform: scale(1); }
+            .form-table tr {
+                transition: background-color 0.2s ease;
             }
             
-            .setting-group {
+            input, select, textarea {
                 transition: all 0.2s ease;
-            }
-            
-            .button {
-                transition: all 0.2s ease;
-            }
-            
-            .button:hover {
-                transform: translateY(-1px);
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
-    manageFocus(event) {
-        const activeElement = document.activeElement;
-        const tooltip = document.querySelector('.wc-percentage-shipping-tooltip');
-        
-        if (tooltip && tooltip.style.opacity === '1') {
-            const helpTip = document.querySelector('.wc-percentage-shipping-help-tip:hover');
-            if (!helpTip) {
-                this.tooltip.hideTooltip();
-            }
-        }
-    }
-
-    handleFormSubmit(event) {
-        const form = event.target;
-        form.style.opacity = '0.7';
-        
-        setTimeout(() => {
-            form.style.opacity = '1';
-        }, 1000);
-    }
-
-    handleTabSwitch(event) {
-        // Add visual feedback for tab switching
-        const tab = event.target;
-        tab.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-            tab.style.transform = 'scale(1)';
-        }, 150);
-    }
-
-    handleKeyboardShortcuts(event) {
-        // Ctrl/Cmd + S to save
-        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-            event.preventDefault();
-            const form = document.querySelector('.settings-form');
-            if (form) {
-                form.requestSubmit();
-            }
-        }
-        
-        // Ctrl/Cmd + Enter to save
-        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-            event.preventDefault();
-            const form = document.querySelector('.settings-form');
-            if (form) {
-                form.requestSubmit();
-            }
-        }
-    }
-}
-
-// Initialize everything when DOM is ready
-domReady(() => {
-    // Initialize modern admin interface
-    new ModernAdminInterface();
-    
-    // Add global styles for animations
-    if (!document.querySelector('#wc-percentage-shipping-animations')) {
-        const style = document.createElement('style');
-        style.id = 'wc-percentage-shipping-animations';
-        style.textContent = `
-            .wc-percentage-shipping-admin * {
-                box-sizing: border-box;
-            }
-            
-            .wc-percentage-shipping-admin {
-                scroll-behavior: smooth;
             }
         `;
         document.head.appendChild(style);

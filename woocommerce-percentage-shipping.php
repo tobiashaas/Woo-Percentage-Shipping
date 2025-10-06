@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: WooCommerce Percentage Shipping
  * Description: Calculate shipping costs as a percentage of physical products with modern architecture
- * Version: 1.4.0
+ * Version: 1.5.1
  * Author: Tobias Haas
  * Text Domain: wc-percentage-shipping
  * Domain Path: /languages
@@ -47,6 +47,15 @@ add_action(
 // WooCommerce dependency is now handled by WordPress via 'Requires Plugins' header
 // This provides better UX and prevents installation without WooCommerce
 
+// GitHub Auto-Updater - Simple Implementation
+require_once plugin_dir_path(__FILE__) . 'includes/class-wc-percentage-shipping-updater.php';
+
+add_action('init', function() {
+    if (is_admin() && current_user_can('update_plugins')) {
+        new WC_Percentage_Shipping_Updater();
+    }
+});
+
 // Check PHP version
 if (version_compare(PHP_VERSION, '8.3', '<')) {
     add_action('admin_notices', static function (): void {
@@ -74,7 +83,7 @@ enum PluginSecurity: string
  */
 enum PluginConfig: string 
 {
-    case VERSION = '1.4.0';
+    case VERSION = '1.5.1';
     case TEXTDOMAIN = 'wc-percentage-shipping';
     case OPTION_NAME = 'wc_percentage_shipping_options';
     case PLUGIN_SLUG = 'percentage-shipping';
@@ -188,8 +197,22 @@ final class WC_Percentage_Shipping_Plugin
             'percentage' => __('Shipping Percentage', PluginConfig::TEXTDOMAIN->value),
             'minimum_fee' => __('Minimum Fee', PluginConfig::TEXTDOMAIN->value),
             'maximum_fee' => __('Maximum Fee', PluginConfig::TEXTDOMAIN->value),
+            'calculation_method' => __('Calculation Method', PluginConfig::TEXTDOMAIN->value),
+            'tiered_rules' => __('Tiered Pricing Rules', PluginConfig::TEXTDOMAIN->value),
+            'free_shipping_threshold' => __('Free Shipping Threshold', PluginConfig::TEXTDOMAIN->value),
+            'flat_rate_addition' => __('Flat Rate Addition', PluginConfig::TEXTDOMAIN->value),
+            'tax_inclusive' => __('Tax Inclusive', PluginConfig::TEXTDOMAIN->value),
             'include_digital_products' => __('Include Digital Products', PluginConfig::TEXTDOMAIN->value),
             'excluded_categories' => __('Excluded Categories', PluginConfig::TEXTDOMAIN->value),
+            'included_tags' => __('Included Tags', PluginConfig::TEXTDOMAIN->value),
+            'excluded_tags' => __('Excluded Tags', PluginConfig::TEXTDOMAIN->value),
+            'included_attributes' => __('Included Attributes', PluginConfig::TEXTDOMAIN->value),
+            'excluded_attributes' => __('Excluded Attributes', PluginConfig::TEXTDOMAIN->value),
+            'included_skus' => __('Included SKUs', PluginConfig::TEXTDOMAIN->value),
+            'excluded_skus' => __('Excluded SKUs', PluginConfig::TEXTDOMAIN->value),
+            'stock_status' => __('Stock Status Filter', PluginConfig::TEXTDOMAIN->value),
+            'weekend_surcharge' => __('Weekend/Holiday Surcharge', PluginConfig::TEXTDOMAIN->value),
+            'customer_group_pricing' => __('Customer Group Pricing', PluginConfig::TEXTDOMAIN->value),
             'debug_mode' => __('Debug Mode', PluginConfig::TEXTDOMAIN->value),
         ];
 
@@ -213,6 +236,20 @@ final class WC_Percentage_Shipping_Plugin
             'maximum_fee' => 100.0,
             'include_digital_products' => 'no',
             'excluded_categories' => [],
+            'included_tags' => [],
+            'excluded_tags' => [],
+            'included_attributes' => [],
+            'excluded_attributes' => [],
+            'included_skus' => [],
+            'excluded_skus' => [],
+            'stock_status' => 'all', // all, instock, outofstock
+            'calculation_method' => 'cart_total', // cart_total, per_product, tiered
+            'tiered_rules' => [],
+            'free_shipping_threshold' => 0,
+            'flat_rate_addition' => 0,
+            'weekend_surcharge' => 0,
+            'customer_group_pricing' => [],
+            'tax_inclusive' => 'no',
             'debug_mode' => 'no',
         ];
     }
@@ -258,87 +295,216 @@ final class WC_Percentage_Shipping_Plugin
 
     private function render_admin_page(): void
     {
-        $current_tab = $_GET['tab'] ?? 'general';
-        $tabs = [
-            'general' => __('General', PluginConfig::TEXTDOMAIN->value),
-            'advanced' => __('Advanced', PluginConfig::TEXTDOMAIN->value),
-            'performance' => __('Performance', PluginConfig::TEXTDOMAIN->value),
-            'security' => __('Security', PluginConfig::TEXTDOMAIN->value),
-        ];
         ?>
         <div class="wrap wc-percentage-shipping-admin">
-            <!-- Header -->
-            <div class="wc-percentage-shipping-header">
-                <div class="header-content">
-                    <div class="header-main">
-                        <h1 class="page-title">
-                            <?php echo esc_html__('Percentage Shipping', PluginConfig::TEXTDOMAIN->value); ?>
+            <?php settings_errors(); ?>
+            
+            <div class="admin-layout">
+                <!-- Vertical Sidebar -->
+                <div class="admin-sidebar">
+                    <!-- Logo -->
+                    <div class="sidebar-header">
+                        <div class="plugin-logo">
+                            <span class="logo-text">Woo Percentage Shipping</span>
                             <span class="version-badge">v<?php echo esc_html(PluginConfig::VERSION->value); ?></span>
-                        </h1>
-                        <p class="page-description">
-                            <?php echo esc_html__('Modern shipping calculation with advanced filtering and performance optimization', PluginConfig::TEXTDOMAIN->value); ?>
-                        </p>
-                    </div>
-                    <div class="header-status">
-                        <?php $this->render_status_badge(); ?>
-                    </div>
-                </div>
-                
-                <!-- Quick Actions -->
-                <div class="quick-actions">
-                    <button type="button" class="button button-secondary" id="clear-cache">
-                        <span class="dashicons dashicons-update"></span>
-                        <?php echo esc_html__('Clear Cache', PluginConfig::TEXTDOMAIN->value); ?>
-                    </button>
-                    <button type="button" class="button button-secondary" id="export-settings">
-                        <span class="dashicons dashicons-download"></span>
-                        <?php echo esc_html__('Export Settings', PluginConfig::TEXTDOMAIN->value); ?>
-                    </button>
-                    <a href="<?php echo esc_url(admin_url('admin.php?page=wc-reports&tab=logs')); ?>" class="button button-secondary">
-                        <span class="dashicons dashicons-visibility"></span>
-                        <?php echo esc_html__('View Logs', PluginConfig::TEXTDOMAIN->value); ?>
-                    </a>
                 </div>
             </div>
 
-            <?php settings_errors(); ?>
-            
-            <!-- Navigation Tabs -->
-            <nav class="wc-percentage-shipping-tabs">
-                <?php foreach ($tabs as $tab_key => $tab_label): ?>
-                    <a href="<?php echo esc_url(admin_url('admin.php?page=' . PluginConfig::PLUGIN_SLUG->value . '&tab=' . $tab_key)); ?>" 
-                       class="nav-tab <?php echo $current_tab === $tab_key ? 'nav-tab-active' : ''; ?>">
-                        <span class="dashicons dashicons-<?php echo $this->get_tab_icon($tab_key); ?>"></span>
-                        <?php echo esc_html($tab_label); ?>
-                    </a>
-                <?php endforeach; ?>
-            </nav>
-            
-            <!-- Main Content -->
-            <div class="wc-percentage-shipping-content">
-                <div class="main-content">
-                    <form method="post" action="" class="settings-form">
+                    <!-- Search -->
+                    <div class="sidebar-search">
+                        <input type="text" 
+                               id="settings-search" 
+                               placeholder="Quick search..." 
+                               class="search-input">
+                        <span class="search-icon dashicons dashicons-search"></span>
+                        <span class="search-shortcut">CtrlK</span>
+                    </div>
+                    
+                    <!-- Navigation Sections -->
+                    <nav class="sidebar-nav">
+                        <div class="nav-section" data-section="general">
+                            <div class="nav-section-header">
+                                <span class="nav-icon dashicons dashicons-admin-settings"></span>
+                                <span class="nav-title">General</span>
+                                <span class="nav-toggle dashicons dashicons-arrow-up-alt2"></span>
+                            </div>
+                            <div class="nav-section-content">
+                                <a href="#" class="nav-item active" data-tab="basic-settings">
+                                    <?php echo esc_html__('Basic Settings', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="digital-products">
+                                    <?php echo esc_html__('Digital Products', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="nav-section" data-section="calculation">
+                            <div class="nav-section-header">
+                                <span class="nav-icon dashicons dashicons-calculator"></span>
+                                <span class="nav-title">Calculation</span>
+                                <span class="nav-toggle dashicons dashicons-arrow-down-alt2"></span>
+                            </div>
+                            <div class="nav-section-content" style="display: none;">
+                                <a href="#" class="nav-item" data-tab="calculation-method">
+                                    <?php echo esc_html__('Calculation Method', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="tiered-pricing">
+                                    <?php echo esc_html__('Tiered Pricing', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="tax-settings">
+                                    <?php echo esc_html__('Tax Settings', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="nav-section" data-section="filters">
+                            <div class="nav-section-header">
+                                <span class="nav-icon dashicons dashicons-filter"></span>
+                                <span class="nav-title">Product Filters</span>
+                                <span class="nav-toggle dashicons dashicons-arrow-down-alt2"></span>
+                            </div>
+                            <div class="nav-section-content" style="display: none;">
+                                <a href="#" class="nav-item" data-tab="categories">
+                                    <?php echo esc_html__('Categories', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="tags">
+                                    <?php echo esc_html__('Tags', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="skus">
+                                    <?php echo esc_html__('SKUs', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="stock-status">
+                                    <?php echo esc_html__('Stock Status', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="nav-section" data-section="pricing">
+                            <div class="nav-section-header">
+                                <span class="nav-icon dashicons dashicons-money-alt"></span>
+                                <span class="nav-title">Pricing</span>
+                                <span class="nav-toggle dashicons dashicons-arrow-down-alt2"></span>
+                            </div>
+                            <div class="nav-section-content" style="display: none;">
+                                <a href="#" class="nav-item" data-tab="fee-limits">
+                                    <?php echo esc_html__('Fee Limits', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="free-shipping">
+                                    <?php echo esc_html__('Free Shipping', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="surcharges">
+                                    <?php echo esc_html__('Surcharges', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="customer-groups">
+                                    <?php echo esc_html__('Customer Groups', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="nav-section" data-section="tools">
+                            <div class="nav-section-header">
+                                <span class="nav-icon dashicons dashicons-admin-tools"></span>
+                                <span class="nav-title">Tools</span>
+                                <span class="nav-toggle dashicons dashicons-arrow-down-alt2"></span>
+                            </div>
+                            <div class="nav-section-content" style="display: none;">
+                                <a href="#" class="nav-item" data-tab="preview">
+                                    <?php echo esc_html__('Live Preview', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="analytics">
+                                    <?php echo esc_html__('Analytics', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                                <a href="#" class="nav-item" data-tab="system-info">
+                                    <?php echo esc_html__('System Info', PluginConfig::TEXTDOMAIN->value); ?>
+                                </a>
+                            </div>
+                        </div>
+                    </nav>
+                </div>
+                
+                <!-- Main Content Area -->
+                <div class="admin-content">
+                    <form method="post" action="" class="settings-form" id="settings-form">
                         <?php 
                         wp_nonce_field(PluginSecurity::NONCE_ACTION->value, PluginSecurity::NONCE_FIELD->value);
                         settings_fields('wc_percentage_shipping_settings');
                         ?>
                         
-                        <?php $this->render_tab_content($current_tab); ?>
+                        <!-- Tab Contents -->
+                        <div class="tab-content active" id="tab-basic-settings">
+                            <?php $this->render_basic_settings(); ?>
+                        </div>
                         
+                        <div class="tab-content" id="tab-digital-products">
+                            <?php $this->render_digital_products(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-calculation-method">
+                            <?php $this->render_calculation_method(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-tiered-pricing">
+                            <?php $this->render_tiered_pricing(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-tax-settings">
+                            <?php $this->render_tax_settings(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-categories">
+                            <?php $this->render_categories(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-tags">
+                            <?php $this->render_tags(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-skus">
+                            <?php $this->render_skus(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-stock-status">
+                            <?php $this->render_stock_status(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-fee-limits">
+                            <?php $this->render_fee_limits(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-free-shipping">
+                            <?php $this->render_free_shipping(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-surcharges">
+                            <?php $this->render_surcharges(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-customer-groups">
+                            <?php $this->render_customer_groups(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-preview">
+                            <?php $this->render_preview_tab(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-analytics">
+                            <?php $this->render_analytics_tab(); ?>
+                        </div>
+                        
+                        <div class="tab-content" id="tab-system-info">
+                            <?php $this->render_system_tab(); ?>
+                        </div>
+                        
+                        <!-- Form Actions -->
                         <div class="form-actions">
-                            <?php submit_button(__('Save Changes', PluginConfig::TEXTDOMAIN->value), 'primary', 'submit', false, ['id' => 'save-settings']); ?>
-                            <button type="button" class="button button-secondary" id="reset-settings">
+                            <button type="submit" class="button-primary" id="save-settings">
+                                <?php echo esc_html__('Save Changes', PluginConfig::TEXTDOMAIN->value); ?>
+                            </button>
+                            <button type="button" class="button-secondary" id="reset-settings">
                                 <?php echo esc_html__('Reset to Defaults', PluginConfig::TEXTDOMAIN->value); ?>
                             </button>
                         </div>
                     </form>
-                </div>
-                
-                <!-- Sidebar -->
-                <div class="sidebar">
-                    <?php $this->render_live_preview(); ?>
-                    <?php $this->render_system_info(); ?>
-                    <?php $this->render_quick_links(); ?>
                 </div>
             </div>
         </div>
@@ -356,111 +522,326 @@ final class WC_Percentage_Shipping_Plugin
         };
     }
 
-    private function render_status_badge(): void
+    private function render_status_indicator(): void
     {
         $enabled = $this->get_option('enabled', 'yes');
-        $status_class = $enabled === 'yes' ? 'status-enabled' : 'status-disabled';
-        $status_icon = $enabled === 'yes' ? 'dashicons-yes' : 'dashicons-no';
+        $status_class = $enabled === 'yes' ? 'status-active' : 'status-inactive';
         $status_text = $enabled === 'yes' ? __('Active', PluginConfig::TEXTDOMAIN->value) : __('Inactive', PluginConfig::TEXTDOMAIN->value);
         ?>
-        <div class="status-badge <?php echo esc_attr($status_class); ?>">
-            <span class="dashicons <?php echo esc_attr($status_icon); ?>"></span>
+        <div class="status-indicator <?php echo esc_attr($status_class); ?>">
+            <span class="status-dot"></span>
             <span class="status-text"><?php echo esc_html($status_text); ?></span>
+                </div>
+        <?php
+    }
+
+    private function render_basic_settings(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Basic Settings', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure the fundamental shipping calculation settings.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="enabled"><?php echo esc_html__('Enable Plugin', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <label class="switch">
+                        <input type="checkbox" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[enabled]" 
+                               id="enabled"
+                               value="yes" 
+                               <?php checked($this->get_option('enabled'), 'yes'); ?>>
+                        <span class="slider"></span>
+                    </label>
+                    <p class="description"><?php echo esc_html__('Turn the percentage shipping calculation on or off', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+            
+            <tr>
+                <th scope="row">
+                    <label for="percentage"><?php echo esc_html__('Shipping Percentage', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <div class="input-with-suffix">
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[percentage]" 
+                               id="percentage"
+                               value="<?php echo esc_attr($this->get_option('percentage', 10)); ?>" 
+                               min="0" 
+                               max="100" 
+                               step="0.1"
+                               class="regular-text"
+                               required>
+                        <span class="suffix">%</span>
+                </div>
+                    <p class="description"><?php echo esc_html__('Percentage of cart value to charge as shipping (0-100%)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+            
+            <tr>
+                <th scope="row">
+                    <label for="minimum_fee"><?php echo esc_html__('Minimum Fee', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <div class="input-with-prefix">
+                        <span class="prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[minimum_fee]" 
+                               id="minimum_fee"
+                               value="<?php echo esc_attr($this->get_option('minimum_fee', 5)); ?>" 
+                               min="0" 
+                               step="0.01"
+                               class="regular-text">
+            </div>
+                    <p class="description"><?php echo esc_html__('Lowest shipping cost regardless of percentage calculation', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+            
+            <tr>
+                <th scope="row">
+                    <label for="maximum_fee"><?php echo esc_html__('Maximum Fee', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <div class="input-with-prefix">
+                        <span class="prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[maximum_fee]" 
+                               id="maximum_fee"
+                               value="<?php echo esc_attr($this->get_option('maximum_fee', 100)); ?>" 
+                               min="0" 
+                               step="0.01"
+                               class="regular-text">
+                    </div>
+                    <p class="description"><?php echo esc_html__('Highest shipping cost cap (0 = unlimited)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_digital_products(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Digital Products', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure how virtual and downloadable products are handled in shipping calculations.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="include_digital_products"><?php echo esc_html__('Include Digital Products', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <label class="switch">
+                        <input type="checkbox" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[include_digital_products]" 
+                               id="include_digital_products"
+                               value="yes" 
+                               <?php checked($this->get_option('include_digital_products'), 'yes'); ?>>
+                        <span class="slider"></span>
+                    </label>
+                    <p class="description"><?php echo esc_html__('Calculate shipping for virtual and downloadable products', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+
+    private function render_filter_settings(): void
+    {
+        ?>
+        <div class="settings-grid">
+            <div class="setting-card">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Digital Products', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Include virtual and downloadable products in shipping calculation', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <label class="switch">
+                        <input type="checkbox" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[include_digital_products]" 
+                               value="yes" 
+                               <?php checked($this->get_option('include_digital_products'), 'yes'); ?>>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-card">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Stock Status Filter', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Filter products by their stock status', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <select name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[stock_status]" class="form-input">
+                        <option value="all" <?php selected($this->get_option('stock_status'), 'all'); ?>>
+                            <?php echo esc_html__('All Products', PluginConfig::TEXTDOMAIN->value); ?>
+                        </option>
+                        <option value="instock" <?php selected($this->get_option('stock_status'), 'instock'); ?>>
+                            <?php echo esc_html__('In Stock Only', PluginConfig::TEXTDOMAIN->value); ?>
+                        </option>
+                        <option value="outofstock" <?php selected($this->get_option('stock_status'), 'outofstock'); ?>>
+                            <?php echo esc_html__('Out of Stock Only', PluginConfig::TEXTDOMAIN->value); ?>
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="setting-card full-width">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Excluded Categories', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Select product categories to exclude from shipping calculation', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <?php $this->render_category_selector(); ?>
+                </div>
+            </div>
+
+            <div class="setting-card full-width">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Included Product Tags', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Only include products with these tags (leave empty for all)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <?php $this->render_tag_selector('included_tags'); ?>
+                </div>
+            </div>
+
+            <div class="setting-card full-width">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Excluded Product Tags', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Exclude products with these tags', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <?php $this->render_tag_selector('excluded_tags'); ?>
+                </div>
+            </div>
+
+            <div class="setting-card full-width">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Included SKUs', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Only include these specific product SKUs (one per line)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <textarea name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[included_skus]" class="form-input" rows="4" placeholder="<?php echo esc_attr__('SKU-001&#10;SKU-002&#10;SKU-003', PluginConfig::TEXTDOMAIN->value); ?>"><?php echo esc_textarea(implode("\n", $this->get_option('included_skus', []))); ?></textarea>
+                </div>
+            </div>
+
+            <div class="setting-card full-width">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Excluded SKUs', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Exclude these specific product SKUs (one per line)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <textarea name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[excluded_skus]" class="form-input" rows="4" placeholder="<?php echo esc_attr__('SKU-001&#10;SKU-002&#10;SKU-003', PluginConfig::TEXTDOMAIN->value); ?>"><?php echo esc_textarea(implode("\n", $this->get_option('excluded_skus', []))); ?></textarea>
+                </div>
+            </div>
         </div>
         <?php
     }
 
-    private function render_tab_content(string $tab): void
-    {
-        match ($tab) {
-            'general' => $this->render_general_tab(),
-            'advanced' => $this->render_advanced_tab(),
-            'performance' => $this->render_performance_tab(),
-            'security' => $this->render_security_tab(),
-            default => $this->render_general_tab()
-        };
-    }
-
-    private function render_general_tab(): void
+    private function render_pricing_settings(): void
     {
         ?>
-        <div class="tab-content">
-            <div class="settings-section">
-                <h3 class="section-title">
-                    <span class="dashicons dashicons-admin-settings"></span>
-                    <?php echo esc_html__('Basic Configuration', PluginConfig::TEXTDOMAIN->value); ?>
-                </h3>
-                <div class="settings-grid">
-                    <div class="setting-group">
-                        <label for="enabled" class="setting-label">
-                            <?php echo esc_html__('Enable Plugin', PluginConfig::TEXTDOMAIN->value); ?>
-                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Turn the percentage shipping calculation on or off', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
-                        </label>
-                        <div class="setting-control">
-                            <label class="toggle-switch">
-                                <input type="checkbox" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[enabled]" value="yes" <?php checked($this->get_option('enabled'), 'yes'); ?>>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
+        <div class="settings-grid">
+            <div class="setting-card">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Free Shipping Threshold', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Minimum cart value for free shipping (0 = disabled)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <div class="input-with-prefix">
+                        <span class="prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[free_shipping_threshold]" 
+                               value="<?php echo esc_attr($this->get_option('free_shipping_threshold', 0)); ?>" 
+                               min="0" 
+                               step="0.01"
+                               class="form-input">
                     </div>
+                </div>
+            </div>
 
-                    <div class="setting-group">
-                        <label for="percentage" class="setting-label">
-                            <?php echo esc_html__('Shipping Percentage', PluginConfig::TEXTDOMAIN->value); ?>
-                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Percentage of cart value to charge as shipping (0-100)', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
-                        </label>
-                        <div class="setting-control">
-                            <div class="input-group">
-                                <input type="number" 
-                                       name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[percentage]" 
-                                       id="percentage"
-                                       value="<?php echo esc_attr($this->get_option('percentage', 10)); ?>" 
-                                       min="0" 
-                                       max="100" 
-                                       step="0.1"
-                                       class="percentage-input"
-                                       required>
-                                <span class="input-suffix">%</span>
+            <div class="setting-card">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Flat Rate Addition', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Additional fixed amount added to percentage calculation', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <div class="input-with-prefix">
+                        <span class="prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[flat_rate_addition]" 
+                               value="<?php echo esc_attr($this->get_option('flat_rate_addition', 0)); ?>" 
+                               min="0" 
+                               step="0.01"
+                               class="form-input">
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-card">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Weekend/Holiday Surcharge', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Additional percentage charged on weekends and holidays', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <div class="input-with-suffix">
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[weekend_surcharge]" 
+                               value="<?php echo esc_attr($this->get_option('weekend_surcharge', 0)); ?>" 
+                               min="0" 
+                               max="100"
+                               step="0.1"
+                               class="form-input">
+                        <span class="suffix">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-card full-width">
+                <div class="setting-header">
+                    <h3><?php echo esc_html__('Customer Group Pricing', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <p><?php echo esc_html__('Set different shipping percentages for different customer groups', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </div>
+                <div class="setting-control">
+                    <div class="customer-groups">
+                        <div class="group-template" style="display: none;">
+                            <div class="group-row">
+                                <select class="form-input" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[customer_group_pricing][{{index}}][group]">
+                                    <option value="guest"><?php echo esc_html__('Guest Customers', PluginConfig::TEXTDOMAIN->value); ?></option>
+                                    <option value="customer"><?php echo esc_html__('Regular Customers', PluginConfig::TEXTDOMAIN->value); ?></option>
+                                    <option value="wholesale"><?php echo esc_html__('Wholesale Customers', PluginConfig::TEXTDOMAIN->value); ?></option>
+                                </select>
+                                <input type="number" placeholder="<?php echo esc_attr__('Percentage', PluginConfig::TEXTDOMAIN->value); ?>" class="form-input" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[customer_group_pricing][{{index}}][percentage]" step="0.1" min="0" max="100">
+                                <button type="button" class="button remove-group"><?php echo esc_html__('Remove', PluginConfig::TEXTDOMAIN->value); ?></button>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="minimum_fee" class="setting-label">
-                            <?php echo esc_html__('Minimum Fee', PluginConfig::TEXTDOMAIN->value); ?>
-                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Minimum shipping cost regardless of percentage calculation', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
-                        </label>
-                        <div class="setting-control">
-                            <div class="input-group">
-                                <span class="input-prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
-                                <input type="number" 
-                                       name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[minimum_fee]" 
-                                       id="minimum_fee"
-                                       value="<?php echo esc_attr($this->get_option('minimum_fee', 5)); ?>" 
-                                       min="0" 
-                                       step="0.01"
-                                       class="currency-input">
+                        <div class="existing-groups">
+                            <?php 
+                            $groups = $this->get_option('customer_group_pricing', []);
+                            foreach ($groups as $index => $group): 
+                            ?>
+                            <div class="group-row">
+                                <select class="form-input" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[customer_group_pricing][<?php echo esc_attr($index); ?>][group]">
+                                    <option value="guest" <?php selected($group['group'] ?? '', 'guest'); ?>><?php echo esc_html__('Guest Customers', PluginConfig::TEXTDOMAIN->value); ?></option>
+                                    <option value="customer" <?php selected($group['group'] ?? '', 'customer'); ?>><?php echo esc_html__('Regular Customers', PluginConfig::TEXTDOMAIN->value); ?></option>
+                                    <option value="wholesale" <?php selected($group['group'] ?? '', 'wholesale'); ?>><?php echo esc_html__('Wholesale Customers', PluginConfig::TEXTDOMAIN->value); ?></option>
+                                </select>
+                                <input type="number" value="<?php echo esc_attr($group['percentage'] ?? ''); ?>" placeholder="<?php echo esc_attr__('Percentage', PluginConfig::TEXTDOMAIN->value); ?>" class="form-input" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[customer_group_pricing][<?php echo esc_attr($index); ?>][percentage]" step="0.1" min="0" max="100">
+                                <button type="button" class="button remove-group"><?php echo esc_html__('Remove', PluginConfig::TEXTDOMAIN->value); ?></button>
                             </div>
+                            <?php endforeach; ?>
                         </div>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="maximum_fee" class="setting-label">
-                            <?php echo esc_html__('Maximum Fee', PluginConfig::TEXTDOMAIN->value); ?>
-                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Maximum shipping cost cap (0 = unlimited)', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
-                        </label>
-                        <div class="setting-control">
-                            <div class="input-group">
-                                <span class="input-prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
-                                <input type="number" 
-                                       name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[maximum_fee]" 
-                                       id="maximum_fee"
-                                       value="<?php echo esc_attr($this->get_option('maximum_fee', 100)); ?>" 
-                                       min="0" 
-                                       step="0.01"
-                                       class="currency-input">
-                            </div>
-                        </div>
+                        <button type="button" class="button button-secondary" id="add-customer-group">
+                            <?php echo esc_html__('Add Customer Group', PluginConfig::TEXTDOMAIN->value); ?>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -468,56 +849,8 @@ final class WC_Percentage_Shipping_Plugin
         <?php
     }
 
-    private function render_advanced_tab(): void
-    {
-        ?>
-        <div class="tab-content">
-            <div class="settings-section">
-                <h3 class="section-title">
-                    <span class="dashicons dashicons-admin-tools"></span>
-                    <?php echo esc_html__('Advanced Options', PluginConfig::TEXTDOMAIN->value); ?>
-                </h3>
-                <div class="settings-grid">
-                    <div class="setting-group">
-                        <label for="include_digital_products" class="setting-label">
-                            <?php echo esc_html__('Include Digital Products', PluginConfig::TEXTDOMAIN->value); ?>
-                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Calculate shipping for virtual/downloadable products', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
-                        </label>
-                        <div class="setting-control">
-                            <label class="toggle-switch">
-                                <input type="checkbox" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[include_digital_products]" value="yes" <?php checked($this->get_option('include_digital_products'), 'yes'); ?>>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    </div>
 
-                    <div class="setting-group full-width">
-                        <label for="excluded_categories" class="setting-label">
-                            <?php echo esc_html__('Excluded Categories', PluginConfig::TEXTDOMAIN->value); ?>
-                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Product categories to exclude from shipping calculation', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
-                        </label>
-                        <div class="setting-control">
-                            <?php $this->render_category_selector(); ?>
-                        </div>
-                    </div>
 
-                    <div class="setting-group">
-                        <label for="debug_mode" class="setting-label">
-                            <?php echo esc_html__('Debug Mode', PluginConfig::TEXTDOMAIN->value); ?>
-                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Enable detailed logging for troubleshooting', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
-                        </label>
-                        <div class="setting-control">
-                            <label class="toggle-switch">
-                                <input type="checkbox" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[debug_mode]" value="yes" <?php checked($this->get_option('debug_mode'), 'yes'); ?>>
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <?php
-    }
 
     private function render_performance_tab(): void
     {
@@ -589,25 +922,6 @@ final class WC_Percentage_Shipping_Plugin
         <?php
     }
 
-    private function render_category_selector(): void
-    {
-        $excluded_categories = $this->get_option('excluded_categories', []);
-        $categories = get_terms([
-            'taxonomy' => 'product_cat',
-            'hide_empty' => false,
-        ]);
-        
-        if (!empty($categories) && !is_wp_error($categories)) {
-            echo '<select name="' . esc_attr(PluginConfig::OPTION_NAME->value) . '[excluded_categories][]" multiple class="category-select">';
-            foreach ($categories as $category) {
-                $selected = in_array($category->term_id, $excluded_categories, true) ? 'selected' : '';
-                echo '<option value="' . esc_attr($category->term_id) . '" ' . $selected . '>' . esc_html($category->name) . '</option>';
-            }
-            echo '</select>';
-        } else {
-            echo '<p class="description">' . esc_html__('No product categories found.', PluginConfig::TEXTDOMAIN->value) . '</p>';
-        }
-    }
 
     private function render_live_preview(): void
     {
@@ -942,24 +1256,24 @@ final class WC_Percentage_Shipping_Plugin
         $start_time = microtime(true);
         
         try {
-            if (!$this->check_rate_limit()) {
+        if (!$this->check_rate_limit()) {
                 WC_Percentage_Shipping_Logger::log_security('Rate limit exceeded', [
                     'user_id' => get_current_user_id(),
                     'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
                 ]);
-                wp_send_json_error(['message' => __('Too many requests. Please try again later.', PluginConfig::TEXTDOMAIN->value)]);
-            }
+            wp_send_json_error(['message' => __('Too many requests. Please try again later.', PluginConfig::TEXTDOMAIN->value)]);
+        }
 
-            if (!current_user_can(PluginSecurity::CAPABILITY->value)) {
+        if (!current_user_can(PluginSecurity::CAPABILITY->value)) {
                 WC_Percentage_Shipping_Logger::log_security('Insufficient permissions', [
                     'user_id' => get_current_user_id(),
                     'capability_required' => PluginSecurity::CAPABILITY->value
                 ]);
-                wp_send_json_error(['message' => __('Insufficient permissions.', PluginConfig::TEXTDOMAIN->value)]);
-            }
+            wp_send_json_error(['message' => __('Insufficient permissions.', PluginConfig::TEXTDOMAIN->value)]);
+        }
 
-            check_ajax_referer('wc_percentage_shipping_preview', 'nonce');
-            
+        check_ajax_referer('wc_percentage_shipping_preview', 'nonce');
+        
             $params = WC_Percentage_Shipping_Validator::validate_ajax_params($_POST);
             $result = WC_Percentage_Shipping_Calculator::calculate_preview(
                 $params['cart_value'],
@@ -974,8 +1288,8 @@ final class WC_Percentage_Shipping_Plugin
                 'cart_value' => $params['cart_value'],
                 'percentage' => $params['percentage']
             ]);
-            
-            wp_send_json_success([
+        
+        wp_send_json_success([
                 'calculated' => wc_price($result['calculated']),
                 'final_cost' => wc_price($result['final_cost']),
                 'explanation' => $result['explanation'],
@@ -1043,6 +1357,610 @@ final class WC_Percentage_Shipping_Plugin
     {
         WC_Percentage_Shipping_Logger::cleanup_old_logs(30); // Keep logs for 30 days
     }
+
+    public function clear_update_cache(): void
+    {
+        // Clear WordPress update cache
+        delete_site_transient('update_plugins');
+        delete_transient('wc_percentage_shipping_update_check');
+        delete_transient('wc_percentage_shipping_update_info');
+        
+        // Force refresh of plugin data
+        wp_cache_delete('plugins', 'plugins');
+    }
+
+    // Helper methods for rendering tab content
+    private function render_category_selector(): void
+    {
+        $excluded_categories = $this->get_option('excluded_categories', []);
+        $categories = get_terms([
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+        ]);
+        
+        if (is_wp_error($categories)) {
+            echo '<p>' . esc_html__('No product categories found.', PluginConfig::TEXTDOMAIN->value) . '</p>';
+            return;
+        }
+        ?>
+        <select name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[excluded_categories][]" 
+                class="form-input" 
+                multiple 
+                style="height: 120px;">
+            <?php foreach ($categories as $category): ?>
+                <option value="<?php echo esc_attr($category->term_id); ?>" 
+                        <?php selected(in_array($category->term_id, $excluded_categories), true); ?>>
+                    <?php echo esc_html($category->name); ?> (<?php echo esc_html($category->count); ?>)
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <?php
+    }
+
+    private function render_tag_selector(string $field_name): void
+    {
+        $selected_tags = $this->get_option($field_name, []);
+        $tags = get_terms([
+            'taxonomy' => 'product_tag',
+            'hide_empty' => false,
+        ]);
+        
+        if (is_wp_error($tags)) {
+            echo '<p>' . esc_html__('No product tags found.', PluginConfig::TEXTDOMAIN->value) . '</p>';
+            return;
+        }
+        ?>
+        <select name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[<?php echo esc_attr($field_name); ?>][]" 
+                class="form-input" 
+                multiple 
+                style="height: 120px;">
+            <?php foreach ($tags as $tag): ?>
+                <option value="<?php echo esc_attr($tag->term_id); ?>" 
+                        <?php selected(in_array($tag->term_id, $selected_tags), true); ?>>
+                    <?php echo esc_html($tag->name); ?> (<?php echo esc_html($tag->count); ?>)
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <?php
+    }
+
+    private function get_shipping_statistics(): array
+    {
+        // Get statistics from cache or calculate
+        $stats = get_transient('wc_percentage_shipping_stats');
+        
+        if (false === $stats) {
+            $stats = [
+                'total_calculations' => 0,
+                'average_cost' => '0.00',
+                'cache_hit_rate' => 0,
+                'avg_calculation_time' => 0,
+                'memory_usage' => round(memory_get_usage(true) / 1024 / 1024, 2),
+                'db_queries' => get_num_queries(),
+                'total_orders' => 0,
+                'total_shipping' => 0,
+                'average_shipping' => 0,
+            ];
+            
+            set_transient('wc_percentage_shipping_stats', $stats, HOUR_IN_SECONDS);
+        }
+        
+        return $stats;
+    }
+
+    private function render_calculation_method(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Calculation Method', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Choose how shipping costs are calculated.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="calculation_method"><?php echo esc_html__('Calculation Method', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <select name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[calculation_method]" id="calculation_method" class="regular-text">
+                        <option value="cart_total" <?php selected($this->get_option('calculation_method'), 'cart_total'); ?>>
+                            <?php echo esc_html__('Cart Total (Default)', PluginConfig::TEXTDOMAIN->value); ?>
+                        </option>
+                        <option value="per_product" <?php selected($this->get_option('calculation_method'), 'per_product'); ?>>
+                            <?php echo esc_html__('Per Product', PluginConfig::TEXTDOMAIN->value); ?>
+                        </option>
+                        <option value="tiered" <?php selected($this->get_option('calculation_method'), 'tiered'); ?>>
+                            <?php echo esc_html__('Tiered Pricing', PluginConfig::TEXTDOMAIN->value); ?>
+                        </option>
+                    </select>
+                    <p class="description"><?php echo esc_html__('How to calculate shipping costs based on cart contents', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+            
+            <tr>
+                <th scope="row">
+                    <label for="tax_inclusive"><?php echo esc_html__('Tax Inclusive', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <label class="switch">
+                        <input type="checkbox" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[tax_inclusive]" 
+                               id="tax_inclusive"
+                               value="yes" 
+                               <?php checked($this->get_option('tax_inclusive'), 'yes'); ?>>
+                        <span class="slider"></span>
+                    </label>
+                    <p class="description"><?php echo esc_html__('Calculate shipping based on tax-inclusive prices', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_tiered_pricing(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Tiered Pricing', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Define different percentages for different cart value ranges.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label><?php echo esc_html__('Tiered Rules', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <div class="tiered-rules">
+                        <div class="rule-template" style="display: none;">
+                            <div class="rule-row">
+                                <input type="number" placeholder="<?php echo esc_attr__('Min Value', PluginConfig::TEXTDOMAIN->value); ?>" class="regular-text" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[tiered_rules][{{index}}][min]" step="0.01">
+                                <input type="number" placeholder="<?php echo esc_attr__('Max Value', PluginConfig::TEXTDOMAIN->value); ?>" class="regular-text" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[tiered_rules][{{index}}][max]" step="0.01">
+                                <input type="number" placeholder="<?php echo esc_attr__('Percentage', PluginConfig::TEXTDOMAIN->value); ?>" class="regular-text" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[tiered_rules][{{index}}][percentage]" step="0.1" min="0" max="100">
+                                <button type="button" class="button remove-rule"><?php echo esc_html__('Remove', PluginConfig::TEXTDOMAIN->value); ?></button>
+                            </div>
+                        </div>
+                        <div class="existing-rules">
+                            <?php 
+                            $rules = $this->get_option('tiered_rules', []);
+                            foreach ($rules as $index => $rule): 
+                            ?>
+                            <div class="rule-row">
+                                <input type="number" value="<?php echo esc_attr($rule['min'] ?? ''); ?>" placeholder="<?php echo esc_attr__('Min Value', PluginConfig::TEXTDOMAIN->value); ?>" class="regular-text" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[tiered_rules][<?php echo esc_attr($index); ?>][min]" step="0.01">
+                                <input type="number" value="<?php echo esc_attr($rule['max'] ?? ''); ?>" placeholder="<?php echo esc_attr__('Max Value', PluginConfig::TEXTDOMAIN->value); ?>" class="regular-text" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[tiered_rules][<?php echo esc_attr($index); ?>][max]" step="0.01">
+                                <input type="number" value="<?php echo esc_attr($rule['percentage'] ?? ''); ?>" placeholder="<?php echo esc_attr__('Percentage', PluginConfig::TEXTDOMAIN->value); ?>" class="regular-text" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[tiered_rules][<?php echo esc_attr($index); ?>][percentage]" step="0.1" min="0" max="100">
+                                <button type="button" class="button remove-rule"><?php echo esc_html__('Remove', PluginConfig::TEXTDOMAIN->value); ?></button>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <button type="button" class="button button-secondary" id="add-tiered-rule">
+                            <?php echo esc_html__('Add Rule', PluginConfig::TEXTDOMAIN->value); ?>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_tax_settings(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Tax Settings', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure how taxes are handled in shipping calculations.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="tax_inclusive"><?php echo esc_html__('Tax Inclusive Calculation', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <label class="switch">
+                        <input type="checkbox" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[tax_inclusive]" 
+                               id="tax_inclusive"
+                               value="yes" 
+                               <?php checked($this->get_option('tax_inclusive'), 'yes'); ?>>
+                        <span class="slider"></span>
+                    </label>
+                    <p class="description"><?php echo esc_html__('Calculate shipping based on tax-inclusive prices instead of tax-exclusive', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_categories(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Product Categories', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure which product categories to include or exclude from shipping calculations.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label><?php echo esc_html__('Excluded Categories', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <?php $this->render_category_selector(); ?>
+                    <p class="description"><?php echo esc_html__('Select product categories to exclude from shipping calculation', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_tags(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Product Tags', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure which product tags to include or exclude from shipping calculations.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label><?php echo esc_html__('Included Tags', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <?php $this->render_tag_selector('included_tags'); ?>
+                    <p class="description"><?php echo esc_html__('Only include products with these tags (leave empty for all)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+            
+            <tr>
+                <th scope="row">
+                    <label><?php echo esc_html__('Excluded Tags', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <?php $this->render_tag_selector('excluded_tags'); ?>
+                    <p class="description"><?php echo esc_html__('Exclude products with these tags', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_skus(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Product SKUs', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure which specific product SKUs to include or exclude from shipping calculations.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="included_skus"><?php echo esc_html__('Included SKUs', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <textarea name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[included_skus]" id="included_skus" class="large-text" rows="4" placeholder="<?php echo esc_attr__('SKU-001&#10;SKU-002&#10;SKU-003', PluginConfig::TEXTDOMAIN->value); ?>"><?php echo esc_textarea(implode("\n", $this->get_option('included_skus', []))); ?></textarea>
+                    <p class="description"><?php echo esc_html__('Only include these specific product SKUs (one per line)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+            
+            <tr>
+                <th scope="row">
+                    <label for="excluded_skus"><?php echo esc_html__('Excluded SKUs', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <textarea name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[excluded_skus]" id="excluded_skus" class="large-text" rows="4" placeholder="<?php echo esc_attr__('SKU-001&#10;SKU-002&#10;SKU-003', PluginConfig::TEXTDOMAIN->value); ?>"><?php echo esc_textarea(implode("\n", $this->get_option('excluded_skus', []))); ?></textarea>
+                    <p class="description"><?php echo esc_html__('Exclude these specific product SKUs (one per line)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_stock_status(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Stock Status', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure which products to include based on their stock status.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="stock_status"><?php echo esc_html__('Stock Status Filter', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <select name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[stock_status]" id="stock_status" class="regular-text">
+                        <option value="all" <?php selected($this->get_option('stock_status'), 'all'); ?>>
+                            <?php echo esc_html__('All Products', PluginConfig::TEXTDOMAIN->value); ?>
+                        </option>
+                        <option value="instock" <?php selected($this->get_option('stock_status'), 'instock'); ?>>
+                            <?php echo esc_html__('In Stock Only', PluginConfig::TEXTDOMAIN->value); ?>
+                        </option>
+                        <option value="outofstock" <?php selected($this->get_option('stock_status'), 'outofstock'); ?>>
+                            <?php echo esc_html__('Out of Stock Only', PluginConfig::TEXTDOMAIN->value); ?>
+                        </option>
+                    </select>
+                    <p class="description"><?php echo esc_html__('Filter products by their stock status', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_fee_limits(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Fee Limits', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Set minimum and maximum shipping fees to control costs.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="minimum_fee"><?php echo esc_html__('Minimum Fee', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <div class="input-with-prefix">
+                        <span class="prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[minimum_fee]" 
+                               id="minimum_fee"
+                               value="<?php echo esc_attr($this->get_option('minimum_fee', 5)); ?>" 
+                               min="0" 
+                               step="0.01"
+                               class="regular-text">
+                    </div>
+                    <p class="description"><?php echo esc_html__('Lowest shipping cost regardless of percentage calculation', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+            
+            <tr>
+                <th scope="row">
+                    <label for="maximum_fee"><?php echo esc_html__('Maximum Fee', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <div class="input-with-prefix">
+                        <span class="prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[maximum_fee]" 
+                               id="maximum_fee"
+                               value="<?php echo esc_attr($this->get_option('maximum_fee', 100)); ?>" 
+                               min="0" 
+                               step="0.01"
+                               class="regular-text">
+                    </div>
+                    <p class="description"><?php echo esc_html__('Highest shipping cost cap (0 = unlimited)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_free_shipping(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Free Shipping', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure free shipping thresholds and conditions.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="free_shipping_threshold"><?php echo esc_html__('Free Shipping Threshold', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <div class="input-with-prefix">
+                        <span class="prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[free_shipping_threshold]" 
+                               id="free_shipping_threshold"
+                               value="<?php echo esc_attr($this->get_option('free_shipping_threshold', 0)); ?>" 
+                               min="0" 
+                               step="0.01"
+                               class="regular-text">
+                    </div>
+                    <p class="description"><?php echo esc_html__('Minimum cart value for free shipping (0 = disabled)', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_surcharges(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Surcharges', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure additional charges and surcharges.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="flat_rate_addition"><?php echo esc_html__('Flat Rate Addition', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <div class="input-with-prefix">
+                        <span class="prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[flat_rate_addition]" 
+                               id="flat_rate_addition"
+                               value="<?php echo esc_attr($this->get_option('flat_rate_addition', 0)); ?>" 
+                               min="0" 
+                               step="0.01"
+                               class="regular-text">
+                    </div>
+                    <p class="description"><?php echo esc_html__('Additional fixed amount added to percentage calculation', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+            
+            <tr>
+                <th scope="row">
+                    <label for="weekend_surcharge"><?php echo esc_html__('Weekend/Holiday Surcharge', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <div class="input-with-suffix">
+                        <input type="number" 
+                               name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[weekend_surcharge]" 
+                               id="weekend_surcharge"
+                               value="<?php echo esc_attr($this->get_option('weekend_surcharge', 0)); ?>" 
+                               min="0" 
+                               max="100"
+                               step="0.1"
+                               class="regular-text">
+                        <span class="suffix">%</span>
+                    </div>
+                    <p class="description"><?php echo esc_html__('Additional percentage charged on weekends and holidays', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_customer_groups(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Customer Groups', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Configure different shipping rates for different customer groups.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label><?php echo esc_html__('Customer Group Pricing', PluginConfig::TEXTDOMAIN->value); ?></label>
+                </th>
+                <td>
+                    <p class="description"><?php echo esc_html__('Customer group pricing feature coming soon. This will allow setting different shipping percentages for different customer groups (e.g., wholesale customers, VIP customers).', PluginConfig::TEXTDOMAIN->value); ?></p>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
+    private function render_preview_tab(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Live Preview', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('Preview shipping calculations with different cart values.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <div class="preview-container">
+            <div class="preview-controls">
+                <label for="preview_cart_value"><?php echo esc_html__('Cart Value:', PluginConfig::TEXTDOMAIN->value); ?></label>
+                <div class="input-with-prefix">
+                    <span class="prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                    <input type="number" id="preview_cart_value" value="100" min="0" step="0.01" class="regular-text">
+                </div>
+                <button type="button" id="calculate-preview" class="button"><?php echo esc_html__('Calculate', PluginConfig::TEXTDOMAIN->value); ?></button>
+            </div>
+            
+            <div class="preview-results" id="preview-results">
+                <div class="preview-loading" style="display: none;">
+                    <span class="spinner is-active"></span>
+                    <?php echo esc_html__('Calculating...', PluginConfig::TEXTDOMAIN->value); ?>
+                </div>
+                <div class="preview-content">
+                    <!-- Results will be loaded here via AJAX -->
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function render_analytics_tab(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('Analytics & Reporting', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('View shipping statistics and performance metrics.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <div class="analytics-container">
+            <div class="analytics-grid">
+                <div class="analytics-card">
+                    <h3><?php echo esc_html__('Shipping Statistics', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <div class="stats-content">
+                        <?php 
+                        $stats = $this->get_shipping_statistics();
+                        ?>
+                        <div class="stat-item">
+                            <span class="stat-label"><?php echo esc_html__('Total Orders:', PluginConfig::TEXTDOMAIN->value); ?></span>
+                            <span class="stat-value"><?php echo esc_html($stats['total_orders']); ?></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label"><?php echo esc_html__('Total Shipping:', PluginConfig::TEXTDOMAIN->value); ?></span>
+                            <span class="stat-value"><?php echo wc_price($stats['total_shipping']); ?></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label"><?php echo esc_html__('Average Shipping:', PluginConfig::TEXTDOMAIN->value); ?></span>
+                            <span class="stat-value"><?php echo wc_price($stats['average_shipping']); ?></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analytics-card">
+                    <h3><?php echo esc_html__('Performance Metrics', PluginConfig::TEXTDOMAIN->value); ?></h3>
+                    <div class="metrics-content">
+                        <div class="metric-item">
+                            <span class="metric-label"><?php echo esc_html__('Cache Hit Rate:', PluginConfig::TEXTDOMAIN->value); ?></span>
+                            <span class="metric-value"><?php echo esc_html($stats['cache_hit_rate']); ?>%</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label"><?php echo esc_html__('Average Calculation Time:', PluginConfig::TEXTDOMAIN->value); ?></span>
+                            <span class="metric-value"><?php echo esc_html($stats['avg_calculation_time']); ?>ms</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function render_system_tab(): void
+    {
+        ?>
+        <h1><?php echo esc_html__('System Information', PluginConfig::TEXTDOMAIN->value); ?></h1>
+        <p class="description">
+            <?php echo esc_html__('System information and diagnostic data.', PluginConfig::TEXTDOMAIN->value); ?>
+        </p>
+        
+        <table class="form-table">
+            <tr>
+                <th scope="row"><?php echo esc_html__('Plugin Version', PluginConfig::TEXTDOMAIN->value); ?></th>
+                <td><?php echo esc_html(PluginConfig::VERSION->value); ?></td>
+            </tr>
+            <tr>
+                <th scope="row"><?php echo esc_html__('WordPress Version', PluginConfig::TEXTDOMAIN->value); ?></th>
+                <td><?php echo esc_html(get_bloginfo('version')); ?></td>
+            </tr>
+            <tr>
+                <th scope="row"><?php echo esc_html__('WooCommerce Version', PluginConfig::TEXTDOMAIN->value); ?></th>
+                <td><?php echo esc_html(WC()->version); ?></td>
+            </tr>
+            <tr>
+                <th scope="row"><?php echo esc_html__('PHP Version', PluginConfig::TEXTDOMAIN->value); ?></th>
+                <td><?php echo esc_html(PHP_VERSION); ?></td>
+            </tr>
+            <tr>
+                <th scope="row"><?php echo esc_html__('Cache Status', PluginConfig::TEXTDOMAIN->value); ?></th>
+                <td>
+                    <?php 
+                    $cache_enabled = $this->get_option('cache_enabled', 'yes');
+                    echo $cache_enabled === 'yes' ? '<span class="status-active">Enabled</span>' : '<span class="status-inactive">Disabled</span>';
+                    ?>
+                </td>
+            </tr>
+        </table>
+        <?php
+    }
+
 }
 
 // Initialize the plugin

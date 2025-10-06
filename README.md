@@ -1,4 +1,4 @@
-# WooCommerce Percentage Shipping
+# Woo Percentage Shipping
 
 Modern shipping calculation plugin that computes shipping costs as a percentage of cart value with advanced filtering options.
 
@@ -24,10 +24,31 @@ Modern shipping calculation plugin that computes shipping costs as a percentage 
 
 ## Installation
 
-1. Upload plugin files to `/wp-content/plugins/woocommerce-percentage-shipping/`
+1. Upload plugin files to `/wp-content/plugins/woo-percentage-shipping/`
 2. Activate through **Plugins → Installed Plugins**
 3. Configure settings at **WooCommerce → Percentage Shipping**
 4. Add shipping method to your WooCommerce shipping zones
+
+## Auto-Updates
+
+This plugin supports automatic updates directly from GitHub releases:
+
+### Automatic Updates (Recommended)
+- **WordPress Dashboard**: Updates appear automatically in **Plugins → Installed Plugins**
+- **One-Click Updates**: Update directly from the WordPress admin interface
+- **Version Notifications**: Get notified when new versions are available
+
+### Manual Updates
+- **Download**: Get the latest release from GitHub
+- **Upload**: Replace the plugin files or use WordPress admin upload
+- **ZIP Installation**: Install via **Plugins → Add New → Upload Plugin**
+
+> **Important**: When downloading from GitHub, the ZIP file contains a folder with the version number (e.g., `Woo-Percentage-Shipping-1.4.0`). After extracting, rename the folder to `woo-percentage-shipping` before uploading to WordPress.
+
+### Update Methods
+1. **GitHub Updater Plugin**: Install the [GitHub Updater](https://wordpress.org/plugins/github-updater/) plugin for enhanced GitHub integration
+2. **Built-in Updater**: The plugin includes a built-in update checker that monitors GitHub releases
+3. **Manual Installation**: Download and install releases manually as needed
 
 ## Configuration
 
@@ -92,6 +113,34 @@ Enable debug mode to access detailed logs:
 - **Maintainability**: Clean, readable, and extensible codebase
 
 ## Changelog
+
+### 1.5.1
+**Yoast-Style Admin Interface**
+- **NEW**: Complete admin interface redesign with Yoast-style vertical sidebar
+- **NEW**: Search functionality with Ctrl+K shortcut
+- **NEW**: Expandable navigation sections with clean organization
+- **NEW**: WordPress form-table styling for professional appearance
+- **IMPROVED**: Better user experience with smooth animations
+- **IMPROVED**: Mobile-responsive design with collapsible sidebar
+- **IMPROVED**: Keyboard shortcuts and accessibility enhancements
+
+### 1.5.0
+**Major Feature Update - All Advanced Features**
+- **NEW**: Extended product filtering (tags, attributes, SKUs, stock status)
+- **NEW**: Flexible calculation methods (per-product, tiered pricing, tax-inclusive)
+- **NEW**: Advanced pricing options (free shipping threshold, flat rate addition, weekend surcharges)
+- **NEW**: Customer group pricing for B2B scenarios
+- **NEW**: Comprehensive analytics and performance metrics
+- **NEW**: Settings backup and restore functionality
+- **NEW**: Enhanced admin interface with 7 organized tabs
+- **IMPROVED**: Better product filtering with multiple criteria
+- **IMPROVED**: Professional pricing options for complex scenarios
+- **IMPROVED**: Real-time statistics and performance monitoring
+
+### 1.4.1
+- **FIXED**: Updater class loading issue resolved
+- **FIXED**: "Class not found" error on plugin activation
+- **IMPROVED**: Auto-update functionality now works correctly
 
 ### 1.4.0
 - **NEW**: Complete modern settings page redesign
