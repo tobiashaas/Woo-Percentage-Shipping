@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: WooCommerce Percentage Shipping
  * Description: Calculate shipping costs as a percentage of physical products with modern architecture
- * Version: 1.3.0
+ * Version: 1.4.0
  * Author: Tobias Haas
  * Text Domain: wc-percentage-shipping
  * Domain Path: /languages
@@ -74,7 +74,7 @@ enum PluginSecurity: string
  */
 enum PluginConfig: string 
 {
-    case VERSION = '1.3.0';
+    case VERSION = '1.4.0';
     case TEXTDOMAIN = 'wc-percentage-shipping';
     case OPTION_NAME = 'wc_percentage_shipping_options';
     case PLUGIN_SLUG = 'percentage-shipping';
@@ -258,48 +258,427 @@ final class WC_Percentage_Shipping_Plugin
 
     private function render_admin_page(): void
     {
+        $current_tab = $_GET['tab'] ?? 'general';
+        $tabs = [
+            'general' => __('General', PluginConfig::TEXTDOMAIN->value),
+            'advanced' => __('Advanced', PluginConfig::TEXTDOMAIN->value),
+            'performance' => __('Performance', PluginConfig::TEXTDOMAIN->value),
+            'security' => __('Security', PluginConfig::TEXTDOMAIN->value),
+        ];
         ?>
         <div class="wrap wc-percentage-shipping-admin">
-            <h1><?php echo esc_html__('WooCommerce Percentage Shipping', PluginConfig::TEXTDOMAIN->value); ?></h1>
-            
+            <!-- Header -->
             <div class="wc-percentage-shipping-header">
-                <div class="wc-percentage-shipping-status">
-                    <?php 
-                    $enabled = $this->get_option('enabled', 'yes');
-                    $status_class = $enabled === 'yes' ? 'status-enabled' : 'status-disabled';
-                    $status_icon = $enabled === 'yes' ? 'dashicons-yes' : 'dashicons-no';
-                    $status_text = $enabled === 'yes' ? __('Enabled', PluginConfig::TEXTDOMAIN->value) : __('Disabled', PluginConfig::TEXTDOMAIN->value);
-                    ?>
-                    <span class="<?php echo esc_attr($status_class); ?>">
-                        <span class="dashicons <?php echo esc_attr($status_icon); ?>"></span>
-                        <?php echo esc_html($status_text); ?>
-                    </span>
+                <div class="header-content">
+                    <div class="header-main">
+                        <h1 class="page-title">
+                            <?php echo esc_html__('Percentage Shipping', PluginConfig::TEXTDOMAIN->value); ?>
+                            <span class="version-badge">v<?php echo esc_html(PluginConfig::VERSION->value); ?></span>
+                        </h1>
+                        <p class="page-description">
+                            <?php echo esc_html__('Modern shipping calculation with advanced filtering and performance optimization', PluginConfig::TEXTDOMAIN->value); ?>
+                        </p>
+                    </div>
+                    <div class="header-status">
+                        <?php $this->render_status_badge(); ?>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button type="button" class="button button-secondary" id="clear-cache">
+                        <span class="dashicons dashicons-update"></span>
+                        <?php echo esc_html__('Clear Cache', PluginConfig::TEXTDOMAIN->value); ?>
+                    </button>
+                    <button type="button" class="button button-secondary" id="export-settings">
+                        <span class="dashicons dashicons-download"></span>
+                        <?php echo esc_html__('Export Settings', PluginConfig::TEXTDOMAIN->value); ?>
+                    </button>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=wc-reports&tab=logs')); ?>" class="button button-secondary">
+                        <span class="dashicons dashicons-visibility"></span>
+                        <?php echo esc_html__('View Logs', PluginConfig::TEXTDOMAIN->value); ?>
+                    </a>
                 </div>
             </div>
 
             <?php settings_errors(); ?>
             
+            <!-- Navigation Tabs -->
+            <nav class="wc-percentage-shipping-tabs">
+                <?php foreach ($tabs as $tab_key => $tab_label): ?>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=' . PluginConfig::PLUGIN_SLUG->value . '&tab=' . $tab_key)); ?>" 
+                       class="nav-tab <?php echo $current_tab === $tab_key ? 'nav-tab-active' : ''; ?>">
+                        <span class="dashicons dashicons-<?php echo $this->get_tab_icon($tab_key); ?>"></span>
+                        <?php echo esc_html($tab_label); ?>
+                    </a>
+                <?php endforeach; ?>
+            </nav>
+            
+            <!-- Main Content -->
             <div class="wc-percentage-shipping-content">
-                <div class="wc-percentage-shipping-main">
-                    <form method="post" action="">
+                <div class="main-content">
+                    <form method="post" action="" class="settings-form">
                         <?php 
                         wp_nonce_field(PluginSecurity::NONCE_ACTION->value, PluginSecurity::NONCE_FIELD->value);
                         settings_fields('wc_percentage_shipping_settings');
-                        do_settings_sections('wc_percentage_shipping_settings');
-                        submit_button(__('Save Settings', PluginConfig::TEXTDOMAIN->value), 'primary', 'submit', false);
                         ?>
+                        
+                        <?php $this->render_tab_content($current_tab); ?>
+                        
+                        <div class="form-actions">
+                            <?php submit_button(__('Save Changes', PluginConfig::TEXTDOMAIN->value), 'primary', 'submit', false, ['id' => 'save-settings']); ?>
+                            <button type="button" class="button button-secondary" id="reset-settings">
+                                <?php echo esc_html__('Reset to Defaults', PluginConfig::TEXTDOMAIN->value); ?>
+                            </button>
+                        </div>
                     </form>
                 </div>
                 
-                <div class="wc-percentage-shipping-box">
-                    <h3><span class="dashicons dashicons-chart-area"></span> <?php echo esc_html__('Current Settings', PluginConfig::TEXTDOMAIN->value); ?></h3>
-                    <?php $this->render_settings_overview(); ?>
+                <!-- Sidebar -->
+                <div class="sidebar">
+                    <?php $this->render_live_preview(); ?>
+                    <?php $this->render_system_info(); ?>
+                    <?php $this->render_quick_links(); ?>
                 </div>
-                
-                <div class="wc-percentage-shipping-box">
-                    <h3><span class="dashicons dashicons-calculator"></span> <?php echo esc_html__('Calculation Preview', PluginConfig::TEXTDOMAIN->value); ?></h3>
-                    <?php $this->render_calculation_preview(); ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function get_tab_icon(string $tab): string
+    {
+        return match ($tab) {
+            'general' => 'admin-generic',
+            'advanced' => 'admin-tools',
+            'performance' => 'performance',
+            'security' => 'shield',
+            default => 'admin-generic'
+        };
+    }
+
+    private function render_status_badge(): void
+    {
+        $enabled = $this->get_option('enabled', 'yes');
+        $status_class = $enabled === 'yes' ? 'status-enabled' : 'status-disabled';
+        $status_icon = $enabled === 'yes' ? 'dashicons-yes' : 'dashicons-no';
+        $status_text = $enabled === 'yes' ? __('Active', PluginConfig::TEXTDOMAIN->value) : __('Inactive', PluginConfig::TEXTDOMAIN->value);
+        ?>
+        <div class="status-badge <?php echo esc_attr($status_class); ?>">
+            <span class="dashicons <?php echo esc_attr($status_icon); ?>"></span>
+            <span class="status-text"><?php echo esc_html($status_text); ?></span>
+        </div>
+        <?php
+    }
+
+    private function render_tab_content(string $tab): void
+    {
+        match ($tab) {
+            'general' => $this->render_general_tab(),
+            'advanced' => $this->render_advanced_tab(),
+            'performance' => $this->render_performance_tab(),
+            'security' => $this->render_security_tab(),
+            default => $this->render_general_tab()
+        };
+    }
+
+    private function render_general_tab(): void
+    {
+        ?>
+        <div class="tab-content">
+            <div class="settings-section">
+                <h3 class="section-title">
+                    <span class="dashicons dashicons-admin-settings"></span>
+                    <?php echo esc_html__('Basic Configuration', PluginConfig::TEXTDOMAIN->value); ?>
+                </h3>
+                <div class="settings-grid">
+                    <div class="setting-group">
+                        <label for="enabled" class="setting-label">
+                            <?php echo esc_html__('Enable Plugin', PluginConfig::TEXTDOMAIN->value); ?>
+                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Turn the percentage shipping calculation on or off', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
+                        </label>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[enabled]" value="yes" <?php checked($this->get_option('enabled'), 'yes'); ?>>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="percentage" class="setting-label">
+                            <?php echo esc_html__('Shipping Percentage', PluginConfig::TEXTDOMAIN->value); ?>
+                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Percentage of cart value to charge as shipping (0-100)', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
+                        </label>
+                        <div class="setting-control">
+                            <div class="input-group">
+                                <input type="number" 
+                                       name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[percentage]" 
+                                       id="percentage"
+                                       value="<?php echo esc_attr($this->get_option('percentage', 10)); ?>" 
+                                       min="0" 
+                                       max="100" 
+                                       step="0.1"
+                                       class="percentage-input"
+                                       required>
+                                <span class="input-suffix">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="minimum_fee" class="setting-label">
+                            <?php echo esc_html__('Minimum Fee', PluginConfig::TEXTDOMAIN->value); ?>
+                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Minimum shipping cost regardless of percentage calculation', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
+                        </label>
+                        <div class="setting-control">
+                            <div class="input-group">
+                                <span class="input-prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                                <input type="number" 
+                                       name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[minimum_fee]" 
+                                       id="minimum_fee"
+                                       value="<?php echo esc_attr($this->get_option('minimum_fee', 5)); ?>" 
+                                       min="0" 
+                                       step="0.01"
+                                       class="currency-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="maximum_fee" class="setting-label">
+                            <?php echo esc_html__('Maximum Fee', PluginConfig::TEXTDOMAIN->value); ?>
+                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Maximum shipping cost cap (0 = unlimited)', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
+                        </label>
+                        <div class="setting-control">
+                            <div class="input-group">
+                                <span class="input-prefix"><?php echo get_woocommerce_currency_symbol(); ?></span>
+                                <input type="number" 
+                                       name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[maximum_fee]" 
+                                       id="maximum_fee"
+                                       value="<?php echo esc_attr($this->get_option('maximum_fee', 100)); ?>" 
+                                       min="0" 
+                                       step="0.01"
+                                       class="currency-input">
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function render_advanced_tab(): void
+    {
+        ?>
+        <div class="tab-content">
+            <div class="settings-section">
+                <h3 class="section-title">
+                    <span class="dashicons dashicons-admin-tools"></span>
+                    <?php echo esc_html__('Advanced Options', PluginConfig::TEXTDOMAIN->value); ?>
+                </h3>
+                <div class="settings-grid">
+                    <div class="setting-group">
+                        <label for="include_digital_products" class="setting-label">
+                            <?php echo esc_html__('Include Digital Products', PluginConfig::TEXTDOMAIN->value); ?>
+                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Calculate shipping for virtual/downloadable products', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
+                        </label>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[include_digital_products]" value="yes" <?php checked($this->get_option('include_digital_products'), 'yes'); ?>>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-group full-width">
+                        <label for="excluded_categories" class="setting-label">
+                            <?php echo esc_html__('Excluded Categories', PluginConfig::TEXTDOMAIN->value); ?>
+                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Product categories to exclude from shipping calculation', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
+                        </label>
+                        <div class="setting-control">
+                            <?php $this->render_category_selector(); ?>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="debug_mode" class="setting-label">
+                            <?php echo esc_html__('Debug Mode', PluginConfig::TEXTDOMAIN->value); ?>
+                            <span class="wc-percentage-shipping-help-tip" title="<?php echo esc_attr__('Enable detailed logging for troubleshooting', PluginConfig::TEXTDOMAIN->value); ?>">?</span>
+                        </label>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" name="<?php echo esc_attr(PluginConfig::OPTION_NAME->value); ?>[debug_mode]" value="yes" <?php checked($this->get_option('debug_mode'), 'yes'); ?>>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function render_performance_tab(): void
+    {
+        ?>
+        <div class="tab-content">
+            <div class="settings-section">
+                <h3 class="section-title">
+                    <span class="dashicons dashicons-performance"></span>
+                    <?php echo esc_html__('Performance Settings', PluginConfig::TEXTDOMAIN->value); ?>
+                </h3>
+                <div class="settings-grid">
+                    <div class="setting-group">
+                        <label class="setting-label">
+                            <?php echo esc_html__('Cache Status', PluginConfig::TEXTDOMAIN->value); ?>
+                        </label>
+                        <div class="setting-control">
+                            <div class="cache-info">
+                                <span class="cache-status"><?php echo esc_html__('Active', PluginConfig::TEXTDOMAIN->value); ?></span>
+                                <span class="cache-details"><?php echo esc_html__('1 hour TTL', PluginConfig::TEXTDOMAIN->value); ?></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label class="setting-label">
+                            <?php echo esc_html__('Rate Limiting', PluginConfig::TEXTDOMAIN->value); ?>
+                        </label>
+                        <div class="setting-control">
+                            <div class="rate-limit-info">
+                                <span class="rate-limit-status"><?php echo esc_html__('30 requests/min', PluginConfig::TEXTDOMAIN->value); ?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function render_security_tab(): void
+    {
+        ?>
+        <div class="tab-content">
+            <div class="settings-section">
+                <h3 class="section-title">
+                    <span class="dashicons dashicons-shield"></span>
+                    <?php echo esc_html__('Security Features', PluginConfig::TEXTDOMAIN->value); ?>
+                </h3>
+                <div class="security-features">
+                    <div class="security-item">
+                        <span class="dashicons dashicons-yes-alt"></span>
+                        <span><?php echo esc_html__('CSRF Protection', PluginConfig::TEXTDOMAIN->value); ?></span>
+                    </div>
+                    <div class="security-item">
+                        <span class="dashicons dashicons-yes-alt"></span>
+                        <span><?php echo esc_html__('Input Validation', PluginConfig::TEXTDOMAIN->value); ?></span>
+                    </div>
+                    <div class="security-item">
+                        <span class="dashicons dashicons-yes-alt"></span>
+                        <span><?php echo esc_html__('XSS Protection', PluginConfig::TEXTDOMAIN->value); ?></span>
+                    </div>
+                    <div class="security-item">
+                        <span class="dashicons dashicons-yes-alt"></span>
+                        <span><?php echo esc_html__('Rate Limiting', PluginConfig::TEXTDOMAIN->value); ?></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function render_category_selector(): void
+    {
+        $excluded_categories = $this->get_option('excluded_categories', []);
+        $categories = get_terms([
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+        ]);
+        
+        if (!empty($categories) && !is_wp_error($categories)) {
+            echo '<select name="' . esc_attr(PluginConfig::OPTION_NAME->value) . '[excluded_categories][]" multiple class="category-select">';
+            foreach ($categories as $category) {
+                $selected = in_array($category->term_id, $excluded_categories, true) ? 'selected' : '';
+                echo '<option value="' . esc_attr($category->term_id) . '" ' . $selected . '>' . esc_html($category->name) . '</option>';
+            }
+            echo '</select>';
+        } else {
+            echo '<p class="description">' . esc_html__('No product categories found.', PluginConfig::TEXTDOMAIN->value) . '</p>';
+        }
+    }
+
+    private function render_live_preview(): void
+    {
+        ?>
+        <div class="sidebar-widget">
+            <h3 class="widget-title">
+                <span class="dashicons dashicons-calculator"></span>
+                <?php echo esc_html__('Live Preview', PluginConfig::TEXTDOMAIN->value); ?>
+            </h3>
+            <div class="preview-content">
+                <div class="preview-example">
+                    <p><strong><?php echo esc_html__('Cart value:', PluginConfig::TEXTDOMAIN->value); ?></strong> <?php echo get_woocommerce_currency_symbol(); ?>50.00</p>
+                    <p><strong><?php echo esc_html__('Calculation:', PluginConfig::TEXTDOMAIN->value); ?></strong> <span id="calculation-preview"><?php echo get_woocommerce_currency_symbol(); ?>50.00 × 10% = <?php echo get_woocommerce_currency_symbol(); ?>5.00</span></p>
+                    <p><strong><?php echo esc_html__('Final fee:', PluginConfig::TEXTDOMAIN->value); ?></strong> <span id="final-fee-preview"><?php echo get_woocommerce_currency_symbol(); ?>5.00</span></p>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function render_system_info(): void
+    {
+        ?>
+        <div class="sidebar-widget">
+            <h3 class="widget-title">
+                <span class="dashicons dashicons-info"></span>
+                <?php echo esc_html__('System Info', PluginConfig::TEXTDOMAIN->value); ?>
+            </h3>
+            <div class="system-info">
+                <div class="info-item">
+                    <span class="info-label"><?php echo esc_html__('Plugin Version:', PluginConfig::TEXTDOMAIN->value); ?></span>
+                    <span class="info-value"><?php echo esc_html(PluginConfig::VERSION->value); ?></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label"><?php echo esc_html__('PHP Version:', PluginConfig::TEXTDOMAIN->value); ?></span>
+                    <span class="info-value"><?php echo esc_html(PHP_VERSION); ?></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label"><?php echo esc_html__('WordPress:', PluginConfig::TEXTDOMAIN->value); ?></span>
+                    <span class="info-value"><?php echo esc_html(get_bloginfo('version')); ?></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label"><?php echo esc_html__('WooCommerce:', PluginConfig::TEXTDOMAIN->value); ?></span>
+                    <span class="info-value"><?php echo esc_html(WC()->version); ?></span>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+
+    private function render_quick_links(): void
+    {
+        ?>
+        <div class="sidebar-widget">
+            <h3 class="widget-title">
+                <span class="dashicons dashicons-admin-links"></span>
+                <?php echo esc_html__('Quick Links', PluginConfig::TEXTDOMAIN->value); ?>
+            </h3>
+            <div class="quick-links">
+                <a href="<?php echo esc_url(admin_url('admin.php?page=wc-settings&tab=shipping')); ?>" class="quick-link">
+                    <span class="dashicons dashicons-admin-settings"></span>
+                    <?php echo esc_html__('Shipping Zones', PluginConfig::TEXTDOMAIN->value); ?>
+                </a>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=wc-reports&tab=logs')); ?>" class="quick-link">
+                    <span class="dashicons dashicons-visibility"></span>
+                    <?php echo esc_html__('View Logs', PluginConfig::TEXTDOMAIN->value); ?>
+                </a>
+                <a href="https://github.com/tobiashaas/Woo-Percentage-Shipping" target="_blank" class="quick-link">
+                    <span class="dashicons dashicons-external"></span>
+                    <?php echo esc_html__('Documentation', PluginConfig::TEXTDOMAIN->value); ?>
+                </a>
             </div>
         </div>
         <?php

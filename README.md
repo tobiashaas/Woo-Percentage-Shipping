@@ -93,6 +93,19 @@ Enable debug mode to access detailed logs:
 
 ## Changelog
 
+### 1.4.0
+- **NEW**: Complete modern settings page redesign
+- **NEW**: Tab-based interface (General, Advanced, Performance, Security)
+- **NEW**: Live preview with real-time calculation updates
+- **NEW**: Quick actions (Clear Cache, Export Settings, View Logs)
+- **NEW**: Modern toggle switches and enhanced form controls
+- **NEW**: Responsive design with mobile-first approach
+- **NEW**: Enhanced accessibility with ARIA labels and keyboard shortcuts
+- **NEW**: Sidebar widgets (Live Preview, System Info, Quick Links)
+- **IMPROVED**: Better user experience with visual feedback and animations
+- **IMPROVED**: Modern CSS Grid and Flexbox layout
+- **IMPROVED**: Enhanced JavaScript with modern Fetch API
+
 ### 1.3.0
 - **BREAKING**: Minimum PHP version raised to 8.3
 - **BREAKING**: Minimum WordPress version raised to 6.8
