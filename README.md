@@ -5,9 +5,11 @@ Modern shipping calculation plugin that computes shipping costs as a percentage 
 ## Requirements
 
 - **WordPress:** 6.8 or higher
-- **WooCommerce:** 10.0 or higher  
+- **WooCommerce:** 10.0 or higher (automatically enforced by WordPress)
 - **PHP:** 8.3 or higher
 - **Database:** MySQL 8.0+ or MariaDB 10.6+
+
+> **Note**: WordPress will prevent installation and activation of this plugin if WooCommerce is not installed or active, thanks to the `Requires Plugins` header.
 
 ## Key Features
 

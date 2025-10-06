@@ -12,6 +12,7 @@ declare(strict_types=1);
  * Requires at least: 6.8
  * Tested up to: 6.8
  * Requires PHP: 8.3
+ * Requires Plugins: woocommerce
  * WC requires at least: 10.0
  * WC tested up to: 10.0
  * License: GPL v2 or later
@@ -43,15 +44,8 @@ add_action(
     }
 );
 
-// Check if WooCommerce is active
-if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins', [])), true)) {
-    add_action('admin_notices', static function (): void {
-        echo '<div class="notice notice-error"><p>';
-        echo esc_html__('WooCommerce Percentage Shipping requires WooCommerce to be active.', 'wc-percentage-shipping');
-        echo '</p></div>';
-    });
-    return;
-}
+// WooCommerce dependency is now handled by WordPress via 'Requires Plugins' header
+// This provides better UX and prevents installation without WooCommerce
 
 // Check PHP version
 if (version_compare(PHP_VERSION, '8.3', '<')) {
