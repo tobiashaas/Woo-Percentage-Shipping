@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: WooCommerce Percentage Shipping
  * Description: Calculate shipping costs as a percentage of physical products with modern architecture
- * Version: 1.5.4
+ * Version: 1.5.5
  * Author: Tobias Haas
  * Text Domain: wc-percentage-shipping
  * Domain Path: /languages
@@ -83,7 +83,7 @@ enum PluginSecurity: string
  */
 enum PluginConfig: string 
 {
-    case VERSION = '1.5.4';
+    case VERSION = '1.5.5';
     case TEXTDOMAIN = 'wc-percentage-shipping';
     case OPTION_NAME = 'wc_percentage_shipping_options';
     case PLUGIN_SLUG = 'percentage-shipping';
@@ -1371,12 +1371,26 @@ final class WC_Percentage_Shipping_Plugin
         $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_wc_percentage_shipping%'");
         $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_wc_percentage_shipping%'");
         
+        // Clear all update-related transients
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_site_transient_update_plugins%'");
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_update_plugins%'");
+        
         // Force refresh of plugin data
         wp_cache_delete('plugins', 'plugins');
         wp_cache_flush();
         
         // Force WordPress to re-check for updates
         wp_clean_update_cache();
+        
+        // Force refresh of plugin information
+        if (function_exists('wp_update_plugins')) {
+            wp_update_plugins();
+        }
+        
+        // Clear any remaining caches
+        if (function_exists('wp_cache_flush_group')) {
+            wp_cache_flush_group('plugins');
+        }
     }
 
     public function clear_update_cache_on_activation(string $plugin, bool $network_wide): void

@@ -123,6 +123,14 @@ Enable debug mode to access detailed logs:
 - **IMPROVED**: Verified PHP syntax is correct
 - **IMPROVED**: All admin interface tabs now working properly
 
+### 1.5.5
+**Enhanced Update Cache Clearing**
+- **FIXED**: More aggressive cache clearing to prevent version inconsistencies
+- **FIXED**: Clear all update-related transients including site transients
+- **IMPROVED**: Force WordPress to re-check for updates with wp_update_plugins()
+- **IMPROVED**: Clear plugin cache groups for complete refresh
+- **IMPROVED**: Prevent showing old versions as available updates
+
 ### 1.5.4
 **WordPress Update Cache Fix**
 - **FIXED**: WordPress update cache now properly shows latest version
